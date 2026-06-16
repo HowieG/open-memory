@@ -4,23 +4,38 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OpenMemory — Consent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,560;1,9..144,500&family=Geist:wght@400;450;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     :root {
-      /* Dark purple pulled from the OpenMemory logo */
-      --om-purple: #4C1D95;
-      --om-purple-bright: #7C3AED;
-      --om-check-bg: #EDE7FB;       /* light purple — checkbox background */
-      --om-page-bg: #F3EFFC;        /* light purple page background */
-      --om-text: #15151A;
-      --om-border: #ECECF1;
+      --paper: radial-gradient(ellipse 100% 100% at 50% 50%, rgba(203, 178, 255, 0.4) 0%, rgba(255, 255, 255, 0) 50%);
+      --surface:  #FFFFFF;   /* card surface */
+      --sunken:   #F3F2ED;   /* expanded sub-memory background */
+      --ink:      #A587F5;   /* primary text, brand, sharing state */
+      --muted:    #5A5C63;
+      --faint:    #8E9098;
+      --hair:     rgba(20, 20, 22, 0.09);
+      --hair-2:   rgba(20, 20, 22, 0.06);
+      --track:    #DAD8D1;   /* toggle OFF track */
+      --track-on: #CBB2FF;
+      --focus:    rgba(20, 20, 22, 0.16);
+
+      --serif: "Fraunces", Georgia, serif;
+      --sans:  "Geist", -apple-system, system-ui, sans-serif;
+      --mono:  "Geist Mono", ui-monospace, monospace;
+
+      --r-card: 24px;
+      --r-list: 16px;
+      --r-row:  12px;
     }
 
     * { box-sizing: border-box; }
 
     /* Inline-editable text */
     [contenteditable] { outline: none; cursor: text; border-radius: 4px; }
-    [contenteditable]:hover { box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15); }
-    [contenteditable]:focus { box-shadow: 0 0 0 2px var(--om-purple-bright); }
+    [contenteditable]:hover  { box-shadow: 0 0 0 2px var(--hair); }
+    [contenteditable]:focus  { box-shadow: 0 0 0 2px var(--focus); }
 
     body {
       margin: 0;
@@ -28,65 +43,52 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: var(--om-page-bg);
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      padding: 32px;
+      background: var(--paper);
+      font-family: var(--sans);
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+      padding: 40px 24px;
     }
 
     /* ---- Card ---- */
     .om-card {
       position: relative;
-      width: 640px;
+      width: 468px;
       max-width: 100%;
-      background: #fff;
-      border-radius: 32px;
-      padding: 48px 56px 40px;
-      box-shadow: 0 24px 60px rgba(20, 10, 50, 0.18);
+      background: var(--surface);
+      border: 1px solid var(--hair);
+      border-radius: var(--r-card);
+      padding: 40px 36px 28px;
+      box-shadow:
+        0 1px 2px rgba(20, 18, 30, 0.04),
+        0 30px 60px -24px rgba(20, 18, 30, 0.22);
     }
 
-    .om-close {
-      position: absolute;
-      top: 28px;
-      right: 28px;
-      width: 44px;
-      height: 44px;
-      border: none;
-      border-radius: 50%;
-      background: #F1F1F4;
-      color: #555;
-      font-size: 20px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .om-close:hover { background: #E7E7EC; }
-
-    /* ---- Brand label ---- */
+    /* ---- Brand wordmark ---- */
     .om-brand {
-      margin: 8px 0 28px;
+      margin: 2px 0 22px;
       text-align: center;
-      font-family: "Poppins", "Segoe UI", system-ui, sans-serif;
-      font-weight: 700;
-      font-size: 40px;
-      letter-spacing: -0.02em;
-      color: var(--om-purple);
+      font-family: var(--serif);
+      font-weight: 560;
+      font-size: 31px;
+      letter-spacing: -0.012em;
+      color: var(--ink);
     }
 
-    /* ---- Overlapping logos (clickable upload slots) ---- */
+    /* ---- Logo lockup (clickable upload slots) ---- */
     .om-logos {
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 36px;
+      margin-bottom: 24px;
     }
     .om-logo {
       position: relative;
-      width: 110px;
-      height: 110px;
+      width: 84px;
+      height: 84px;
       border-radius: 50%;
-      background: var(--om-check-bg);
-      border: 2px dashed #C9B8EE;
+      background: var(--sunken);
+      border: 1.5px dashed var(--hair);
       cursor: pointer;
       overflow: hidden;
       display: flex;
@@ -94,96 +96,188 @@
       justify-content: center;
       transition: border-color 0.15s, background 0.15s;
     }
-    .om-logo:hover {
-      border-color: var(--om-purple-bright);
-      background: #E6DBFA;
-    }
-    .om-logo img {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-      display: none;             /* shown once a file is picked */
-    }
-    /* Once a logo is uploaded, keep the circle and contain the image inside it. */
-    .om-logo.has-image {
-      border-style: solid;
-      border-color: transparent;
-      background: #fff;
-    }
+    .om-logo:hover { border-color: var(--ink); background: #ECEAE3; }
+    .om-logo img { max-width: 100%; max-height: 100%; object-fit: contain; display: none; }
+    .om-logo.has-image { border-style: solid; border-color: var(--hair); background: #fff; }
     .om-logo.has-image img { display: block; }
     .om-logo .om-logo-hint {
-      color: var(--om-purple);
-      font-size: 13px;
-      font-weight: 600;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
       text-align: center;
       padding: 0 8px;
       pointer-events: none;
     }
     .om-logo.has-image .om-logo-hint { display: none; }
     .om-logo input { display: none; }
-
     .om-logo-left  { z-index: 1; }
-    .om-logo-right {
-      z-index: 2;            /* right slot overlaid on top */
-      margin-left: -40px;    /* overlap onto the left slot */
-    }
+    .om-logo-right { z-index: 2; margin-left: -28px; box-shadow: -10px 0 16px -10px rgba(20,18,30,0.25); }
 
     /* ---- Headline ---- */
     .om-headline {
       text-align: center;
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--om-text);
-      margin: 0 0 32px;
-      white-space: nowrap;
+      font-size: 17px;
+      font-weight: 450;
+      line-height: 1.45;
+      color: var(--muted);
+      margin: 0 0 6px;
     }
-    .om-headline .om-app { color: var(--om-purple-bright); }
+    .om-headline .om-app { color: var(--ink); font-weight: 600; }
 
-    /* ---- Memory list ---- */
+    .om-subline {
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--faint);
+      margin: 0 0 24px;
+    }
+
+    /* ---- Memory list (accordion) ---- */
     .om-list {
-      width: 70%;                 /* 30% narrower than the card body */
-      margin: 0 auto 32px;
-      border: 1px solid var(--om-border);
-      border-radius: 20px;
+      width: 100%;
+      margin: 0 0 14px;
+      border: 1px solid var(--hair);
+      border-radius: var(--r-list);
       overflow: hidden;
+      background: var(--surface);
     }
-    .om-item {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      padding: 20px 24px;
-      font-size: 19px;
-      color: var(--om-text);
-    }
-    .om-item + .om-item { border-top: 1px solid var(--om-border); }
+    .om-cat + .om-cat { border-top: 1px solid var(--hair-2); }
 
-    .om-check {
-      flex: none;
-      width: 30px;
-      height: 30px;
-      border-radius: 9px;
-      background: var(--om-check-bg);
+    .om-cat-head {
       display: flex;
       align-items: center;
-      justify-content: center;
-      color: var(--om-purple);
+      gap: 12px;
+      padding: 15px 16px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.14s;
     }
-    .om-check svg { width: 18px; height: 18px; }
+    .om-cat-head:hover { background: var(--sunken); }
+
+    .om-chev {
+      flex: none;
+      width: 16px; height: 16px;
+      color: var(--faint);
+      transition: transform 0.22s ease;
+    }
+    .om-cat[data-open="true"] .om-chev { transform: rotate(90deg); color: var(--muted); }
+
+    .om-cat-name {
+      flex: 1;
+      min-width: 0;
+      font-size: 15.5px;
+      font-weight: 500;
+      color: var(--ink);
+      letter-spacing: -0.005em;
+    }
+    .om-cat-count {
+      flex: none;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+      color: var(--faint);
+      font-variant-numeric: tabular-nums;
+      min-width: 30px;
+      text-align: right;
+    }
+
+    /* ---- Accordion body (smooth height via grid) ---- */
+    .om-cat-body {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.26s ease;
+      background: var(--sunken);
+    }
+    .om-cat[data-open="true"] .om-cat-body { grid-template-rows: 1fr; }
+    .om-cat-body-inner { overflow: hidden; }
+
+    .om-mem {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 16px 11px 44px;
+      border-top: 1px solid var(--hair-2);
+    }
+    .om-mem-text {
+      flex: 1;
+      min-width: 0;
+      font-size: 14px;
+      line-height: 1.4;
+      color: var(--muted);
+    }
+    .om-mem.on .om-mem-text { color: var(--ink); }
+
+    /* ---- Switch ---- */
+    .sw {
+      flex: none;
+      position: relative;
+      width: 40px; height: 23px;
+      border-radius: 999px;
+      border: none;
+      background: var(--track);
+      cursor: pointer;
+      padding: 0;
+      transition: background 0.18s ease;
+    }
+    .sw::after {
+      content: "";
+      position: absolute;
+      top: 2.5px; left: 2.5px;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(20,18,30,0.28);
+      transition: transform 0.18s ease;
+    }
+    .sw[aria-checked="true"]  { background: var(--track-on); }
+    .sw[aria-checked="true"]::after  { transform: translateX(17px); }
+    .sw[aria-checked="mixed"] { background: var(--track-on); opacity: 0.45; }
+    .sw[aria-checked="mixed"]::after { transform: translateX(8.5px); }≈≈
+    .sw:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+    .sw-master { width: 38px; height: 22px; }
+    .sw-master::after { width: 17px; height: 17px; }
+    .sw-master[aria-checked="true"]::after { transform: translateX(16px); }
+    .sw-master[aria-checked="mixed"]::after { transform: translateX(8px); }
 
     /* ---- Connect button ---- */
     .om-connect {
       width: 100%;
       border: none;
       border-radius: 999px;
-      padding: 22px;
-      font-size: 21px;
-      font-weight: 700;
+      padding: 17px 22px;
+      font-family: var(--sans);
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.005em;
       color: #fff;
       cursor: pointer;
-      background: linear-gradient(180deg, #8B45E8 0%, #7C3AED 100%);
-      box-shadow: 0 12px 28px rgba(124, 58, 237, 0.45);
+      background: var(--ink);
+      transition: transform 0.14s ease, opacity 0.14s ease;
     }
-    .om-connect:hover { filter: brightness(1.05); }
+    .om-connect:hover { transform: translateY(-1px); }
+    .om-connect:active { transform: translateY(0); }
+    .om-connect:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+    .om-foot-note {
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--faint);
+      margin: 14px 0 4px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .om-chev, .om-cat-body, .sw, .sw::after, .om-connect { transition: none; }
+    }
   </style>
 </head>
 <body>
@@ -192,12 +286,12 @@
 
     <div class="om-logos">
       <label class="om-logo om-logo-left">
-        <span class="om-logo-hint">Upload logo</span>
+        <span class="om-logo-hint">Logo</span>
         <img alt="Left logo" />
         <input type="file" accept="image/*" />
       </label>
       <label class="om-logo om-logo-right">
-        <span class="om-logo-hint">Upload logo</span>
+        <span class="om-logo-hint">Logo</span>
         <img alt="Right logo" />
         <input type="file" accept="image/*" />
       </label>
@@ -206,44 +300,85 @@
     <h2 class="om-headline">
       <span class="om-app" contenteditable="true">Travel Weekly</span> <span contenteditable="true">wants to read these memories</span>
     </h2>
+    <p class="om-subline">Choose what to share</p>
 
-    <div class="om-list">
-      <div class="om-item">
-        <span class="om-check">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        </span>
-        <span contenteditable="true">trips you're researching</span>
+    <div class="om-list" id="list">
+
+      <!-- Each .om-cat is an accordion. data-open controls expansion. -->
+      <div class="om-cat" data-open="true">
+        <div class="om-cat-head">
+          <svg class="om-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <span class="om-cat-name" contenteditable="true">Food preferences</span>
+          <span class="om-cat-count"></span>
+          <button class="sw sw-master" aria-checked="true" aria-label="Share all in category"></button>
+        </div>
+        <div class="om-cat-body"><div class="om-cat-body-inner">
+          <div class="om-mem on"><span class="om-mem-text" contenteditable="true">Loves Indian food</span><button class="sw" aria-checked="true" aria-label="Share memory"></button></div>
+          <div class="om-mem on"><span class="om-mem-text" contenteditable="true">High protein from plant sources</span><button class="sw" aria-checked="true" aria-label="Share memory"></button></div>
+          <div class="om-mem on"><span class="om-mem-text" contenteditable="true">Cooks for two, twice a week in batches</span><button class="sw" aria-checked="true" aria-label="Share memory"></button></div>
+        </div></div>
       </div>
-      <div class="om-item">
-        <span class="om-check">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        </span>
-        <span contenteditable="true">lifestyle</span>
+
+      <div class="om-cat" data-open="false">
+        <div class="om-cat-head">
+          <svg class="om-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <span class="om-cat-name" contenteditable="true">Trips you're researching</span>
+          <span class="om-cat-count"></span>
+          <button class="sw sw-master" aria-checked="true" aria-label="Share all in category"></button>
+        </div>
+        <div class="om-cat-body"><div class="om-cat-body-inner">
+          <div class="om-mem on"><span class="om-mem-text" contenteditable="true">Planning an Oregon trip this fall</span><button class="sw" aria-checked="true" aria-label="Share memory"></button></div>
+          <div class="om-mem on"><span class="om-mem-text" contenteditable="true">Prefers off-grid camping over hotels</span><button class="sw" aria-checked="true" aria-label="Share memory"></button></div>
+        </div></div>
       </div>
-      <div class="om-item">
-        <span class="om-check">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        </span>
-        <span contenteditable="true">price sensitivity</span>
+
+      <div class="om-cat" data-open="false">
+        <div class="om-cat-head">
+          <svg class="om-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <span class="om-cat-name" contenteditable="true">Lifestyle</span>
+          <span class="om-cat-count"></span>
+          <button class="sw sw-master" aria-checked="mixed" aria-label="Share all in category"></button>
+        </div>
+        <div class="om-cat-body"><div class="om-cat-body-inner">
+          <div class="om-mem on"><span class="om-mem-text" contenteditable="true">Avid camper, owns a Toyota 4Runner</span><button class="sw" aria-checked="true" aria-label="Share memory"></button></div>
+          <div class="om-mem"><span class="om-mem-text" contenteditable="true">Seasoned traveler, packs light</span><button class="sw" aria-checked="false" aria-label="Share memory"></button></div>
+        </div></div>
       </div>
-      <div class="om-item">
-        <span class="om-check">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        </span>
-        <span contenteditable="true">hobbies</span>
+
+      <div class="om-cat" data-open="false">
+        <div class="om-cat-head">
+          <svg class="om-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <span class="om-cat-name" contenteditable="true">Price sensitivity</span>
+          <span class="om-cat-count"></span>
+          <button class="sw sw-master" aria-checked="true" aria-label="Share all in category"></button>
+        </div>
+        <div class="om-cat-body"><div class="om-cat-body-inner">
+          <div class="om-mem on"><span class="om-mem-text" contenteditable="true">Buys household staples in bulk</span><button class="sw" aria-checked="true" aria-label="Share memory"></button></div>
+          <div class="om-mem on"><span class="om-mem-text" contenteditable="true">Splurges on experiences, not things</span><button class="sw" aria-checked="true" aria-label="Share memory"></button></div>
+        </div></div>
       </div>
-      <div class="om-item">
-        <span class="om-check">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        </span>
-        <span contenteditable="true">restaurant preferences</span>
+
+      <div class="om-cat" data-open="false">
+        <div class="om-cat-head">
+          <svg class="om-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <span class="om-cat-name" contenteditable="true">Hobbies</span>
+          <span class="om-cat-count"></span>
+          <button class="sw sw-master" aria-checked="true" aria-label="Share all in category"></button>
+        </div>
+        <div class="om-cat-body"><div class="om-cat-body-inner">
+          <div class="om-mem on"><span class="om-mem-text" contenteditable="true">Landscape photographer</span><button class="sw" aria-checked="true" aria-label="Share memory"></button></div>
+          <div class="om-mem on"><span class="om-mem-text" contenteditable="true">Researches camera gear obsessively</span><button class="sw" aria-checked="true" aria-label="Share memory"></button></div>
+        </div></div>
       </div>
+
     </div>
 
-    <button class="om-connect"><span contenteditable="true">Connect</span></button>
+    <button class="om-connect" id="connect">Share memories</button>
+    <p class="om-foot-note">Revocable anytime from your dashboard</p>
   </div>
 
   <script>
+    // ---- Logo upload slots ----
     document.querySelectorAll('.om-logo').forEach(function (slot) {
       var input = slot.querySelector('input');
       var img = slot.querySelector('img');
@@ -254,6 +389,67 @@
         slot.classList.add('has-image');
       });
     });
+
+    // ---- Accordion + switches ----
+    var list = document.getElementById('list');
+    var connect = document.getElementById('connect');
+
+    function memsOf(cat) { return Array.prototype.slice.call(cat.querySelectorAll('.om-mem')); }
+    function isOn(mem) { return mem.querySelector('.sw').getAttribute('aria-checked') === 'true'; }
+
+    function setMem(mem, on) {
+      mem.classList.toggle('on', on);
+      mem.querySelector('.sw').setAttribute('aria-checked', on ? 'true' : 'false');
+    }
+
+    function refreshCategory(cat) {
+      var mems = memsOf(cat);
+      var on = mems.filter(isOn).length;
+      var total = mems.length;
+      cat.querySelector('.om-cat-count').textContent = on + '/' + total;
+      var master = cat.querySelector('.sw-master');
+      master.setAttribute('aria-checked', on === 0 ? 'false' : (on === total ? 'true' : 'mixed'));
+    }
+
+    function refreshTotal() {
+      var total = list.querySelectorAll('.om-mem').length === 0 ? 0 :
+        Array.prototype.slice.call(list.querySelectorAll('.om-mem')).filter(isOn).length;
+      connect.textContent = total === 0 ? 'Share nothing' : 'Share ' + total + (total === 1 ? ' memory' : ' memories') + '  →';
+      connect.disabled = total === 0;
+    }
+
+    function refreshAll() {
+      list.querySelectorAll('.om-cat').forEach(refreshCategory);
+      refreshTotal();
+    }
+
+    list.querySelectorAll('.om-cat').forEach(function (cat) {
+      // expand / collapse — click header but not the master switch or while editing text
+      cat.querySelector('.om-cat-head').addEventListener('click', function (e) {
+        if (e.target.closest('.sw-master')) return;
+        if (e.target.closest('[contenteditable]')) return;
+        cat.setAttribute('data-open', cat.getAttribute('data-open') === 'true' ? 'false' : 'true');
+      });
+
+      // master switch — share all / none in this category
+      cat.querySelector('.sw-master').addEventListener('click', function (e) {
+        e.stopPropagation();
+        var mems = memsOf(cat);
+        var allOn = mems.every(isOn);
+        mems.forEach(function (m) { setMem(m, !allOn); });
+        refreshAll();
+      });
+
+      // individual memory switches
+      memsOf(cat).forEach(function (mem) {
+        mem.querySelector('.sw').addEventListener('click', function () {
+          setMem(mem, !isOn(mem));
+          refreshAll();
+        });
+      });
+    });
+
+    refreshAll();
   </script>
 </body>
 </html>
