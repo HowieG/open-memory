@@ -100,13 +100,27 @@ function showFacts() {
   for (const el of document.querySelectorAll("#mem-list .conv-item.active")) el.classList.remove("active");
 }
 
-$("next").addEventListener("click", async () => {
+async function openMemories() {
   const list = await window.api.listConversations();
   $("mem-list").innerHTML = list.map((c) => convItem(c, true)).join("");
   renderFacts();
   showFacts();
   show("screen-memories");
-});
+}
+
+$("next").addEventListener("click", openMemories);
+
+// Persistence: if the store already has conversations from a prior session,
+// offer to jump straight to them.
+async function checkStore() {
+  const existing = await window.api.listConversations();
+  if (!existing.length) return;
+  const r = $("resume");
+  r.style.display = "block";
+  r.innerHTML = `<button id="resume-btn">View your ${existing.length} stored conversation${existing.length === 1 ? "" : "s"} →</button>`;
+  $("resume-btn").addEventListener("click", openMemories);
+}
+checkStore();
 
 $("back").addEventListener("click", showFacts);
 
