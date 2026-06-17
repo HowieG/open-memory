@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ConversationView } from "./ConversationView";
 import { MemoriesView } from "./MemoriesView";
-import type { ConvData, ConvMeta, Eligibility, MemoriesDoc, ProviderInfo, UploadResult } from "./env";
+import type { ConvData, ConvMeta, Eligibility, MemoriesDoc, ProviderInfo, RateLimitInfo, UploadResult } from "./env";
 
 // Real brand logos dropped into ./logos/ (openai|claude|gemini . svg|png) render
 // instead of the inline approximations below. Missing ones fall back gracefully.
@@ -57,6 +57,7 @@ export function App() {
   const [extracting, setExtracting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [extractError, setExtractError] = useState<string | null>(null);
+  const [rateLimited, setRateLimited] = useState<RateLimitInfo | null>(null);
   const [importResult, setImportResult] = useState<UploadResult | null>(null);
   const [status, setStatus] = useState("");
   const [hot, setHot] = useState(false);
@@ -119,9 +120,16 @@ export function App() {
     setExtracting(true);
     setProgress(0);
     setExtractError(null);
-    const unsub = api.onExtractProgress(setProgress);
+    setRateLimited(null);
+    const unsubP = api.onExtractProgress((n) => {
+      setProgress(n);
+      setRateLimited(null); // a completed conversation means we're moving again
+    });
+    const unsubR = api.onExtractRateLimit(setRateLimited);
     const doc = await api.extractMemories(providerId, config, limit);
-    unsub();
+    unsubP();
+    unsubR();
+    setRateLimited(null);
     setExtracting(false);
     if (doc.error) setExtractError(doc.error);
     else setMemories(doc);
@@ -172,6 +180,7 @@ export function App() {
               memories={memories}
               extracting={extracting}
               progress={progress}
+              rateLimited={rateLimited}
               error={extractError}
               onExtract={runExtract}
               onPreview={(limit) => runExtract("stub", {}, limit)}

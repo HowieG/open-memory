@@ -23,6 +23,7 @@ export type MemoriesDoc = {
   error?: string;
 };
 export type Eligibility = { eligible: number; excluded: number; total: number };
+export type RateLimitInfo = { attempt: number; waitMs: number };
 
 type Ingest = UploadResult | { canceled: true } | { error: string };
 
@@ -40,6 +41,7 @@ declare global {
       extractMemories(providerId: string, config?: { apiKey?: string; endpoint?: string }, limit?: number): Promise<MemoriesDoc>;
       cancelExtract(): Promise<void>;
       onExtractProgress(cb: (processed: number) => void): () => void;
+      onExtractRateLimit(cb: (info: RateLimitInfo) => void): () => void;
       editFact(id: string, text: string): Promise<MemoriesDoc>;
       forgetFact(id: string): Promise<MemoriesDoc>;
     };

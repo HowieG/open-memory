@@ -116,7 +116,8 @@ ipcMain.handle("extract-memories", async (event, { providerId, config, limit }) 
   if (!provider) return { error: `unknown provider "${providerId}"` };
   extractAbort = { aborted: false };
   try {
-    const result = await extractMemories(store, provider, config, {
+    const cfg = { ...config, onRateLimit: (info) => event.sender.send("extract-rate-limit", info) };
+    const result = await extractMemories(store, provider, cfg, {
       limit: typeof limit === "number" ? limit : undefined,
       concurrency: 5,
       signal: extractAbort,

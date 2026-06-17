@@ -21,6 +21,11 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.on("extract-progress", handler);
     return () => ipcRenderer.removeListener("extract-progress", handler);
   },
+  onExtractRateLimit: (cb) => {
+    const handler = (_event, info) => cb(info);
+    ipcRenderer.on("extract-rate-limit", handler);
+    return () => ipcRenderer.removeListener("extract-rate-limit", handler);
+  },
   editFact: (id, text) => ipcRenderer.invoke("edit-fact", { id, text }),
   forgetFact: (id) => ipcRenderer.invoke("forget-fact", id),
 });

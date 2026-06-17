@@ -80,7 +80,7 @@ function postJson(
 }
 
 const claude: MemoryProvider = {
-  info: { id: "claude", label: "Claude (Anthropic)", kind: "api", source: "claude", defaultModel: "claude-sonnet-4-6", configHint: "ANTHROPIC_API_KEY" },
+  info: { id: "claude", label: "Claude (Anthropic)", kind: "api", source: "claude", defaultModel: "claude-haiku-4-5-20251001", configHint: "ANTHROPIC_API_KEY" },
   async complete(system, user, cfg = {}) {
     const key = cfg.apiKey ?? process.env.ANTHROPIC_API_KEY;
     if (!key) throw new Error("Claude provider needs an API key (ANTHROPIC_API_KEY)");
