@@ -7,3 +7,4 @@ core.cjs
 qa.png
 test-results/
 playwright-report/
+renderer-dist/

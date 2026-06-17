@@ -38,27 +38,27 @@ test("upload -> memory store confirmation -> memories page -> render a conversat
   const win = await app.firstWindow();
 
   // 1. upload
-  await win.click("#pick");
+  await win.getByTestId("pick").click();
 
   // 2. confirmation screen with the conversation titles
   await expect(win.getByText("Conversations uploaded to your memory store")).toBeVisible({ timeout: 30_000 });
-  await expect(win.locator("#uploaded-list")).toContainText("E2E Test Conversation");
-  await expect(win.locator("#uploaded-list")).toContainText("Second Conversation");
+  await expect(win.getByTestId("uploaded-list")).toContainText("E2E Test Conversation");
+  await expect(win.getByTestId("uploaded-list")).toContainText("Second Conversation");
 
-  // 3. Next -> memories page
-  await win.click("#next");
-  await expect(win.locator("#mem-facts h2")).toHaveText("Your memories");
-  await expect(win.locator("#mem-facts")).toContainText("Based in San Francisco");
+  // 3. Next -> memories page (dummy facts)
+  await win.getByTestId("next").click();
+  await expect(win.getByTestId("facts").getByRole("heading", { name: "Your memories" })).toBeVisible();
+  await expect(win.getByTestId("facts")).toContainText("Based in San Francisco");
 
-  // 4. sidebar lists all conversations, tagged with the Claude source logo
-  const items = win.locator("#mem-list .conv-item");
+  // 4. sidebar lists all conversations, tagged with the Claude source
+  const items = win.getByTestId("conv-item");
   await expect(items).toHaveCount(2);
-  await expect(win.locator('#mem-list .conv-item .logo[title="claude"]').first()).toBeVisible();
+  await expect(win.locator('[data-testid="conv-item"][data-source="claude"]')).toHaveCount(2);
 
-  // 5. clicking a conversation renders it
-  await win.locator("#mem-list .conv-item", { hasText: "E2E Test Conversation" }).click();
-  const frame = win.frameLocator("#mem-view");
-  await expect(frame.locator("body")).toContainText("Hello from the test");
+  // 5. clicking a conversation renders it via assistant-ui
+  await items.filter({ hasText: "E2E Test Conversation" }).click();
+  await expect(win.locator(".conv-head")).toContainText("E2E Test Conversation");
+  await expect(win.getByText("Hello from the test")).toBeVisible();
 
   await win.screenshot({ path: path.join(HERE, "qa.png") });
   await app.close();

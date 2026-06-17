@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld("api", {
   ingestPath: (zipPath) => ipcRenderer.invoke("ingest-path", zipPath),
   listConversations: () => ipcRenderer.invoke("list-conversations"),
   getConversation: (id) => ipcRenderer.invoke("get-conversation", id),
+  getConversationData: (id) => ipcRenderer.invoke("get-conversation-data", id),
   // Electron removed File.path; this is the supported way to get a dropped file's path.
   pathForFile: (file) => webUtils.getPathForFile(file),
 });

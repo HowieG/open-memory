@@ -23,7 +23,7 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
-  win.loadFile("index.html");
+  win.loadFile("renderer-dist/index.html");
 }
 
 function light(c) {
@@ -66,6 +66,13 @@ ipcMain.handle("get-conversation", async (_event, id) => {
   const c = await store.get(id);
   if (!c) return { error: "conversation not found" };
   return { html: renderConversationsHtml([c], { source: c.source, header: false }) };
+});
+
+// Raw conversation data for the React/assistant-ui renderer.
+ipcMain.handle("get-conversation-data", async (_event, id) => {
+  const c = await store.get(id);
+  if (!c) return { error: "conversation not found" };
+  return { id: c.id, title: c.title, source: c.source, messages: c.messages };
 });
 
 app.whenReady().then(async () => {
