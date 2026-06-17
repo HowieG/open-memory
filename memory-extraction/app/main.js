@@ -10,6 +10,7 @@ const {
   rankProviders,
   PROVIDERS,
   extractMemories,
+  consolidateFacts,
   classifyConversations,
   extractEmojiPortrait,
 } = require("./core.cjs");
@@ -126,7 +127,31 @@ ipcMain.handle("extract-memories", async (event, { providerId, config, limit }) 
       signal: extractAbort,
       onProgress: (n) => event.sender.send("extract-progress", n),
     });
-    const facts = result.facts.map((f, i) => ({ id: `f${i}`, text: f.text, from: f.from, category: f.category, sensitive: !!f.sensitive }));
+    // Tag conversations as sensitive/bucketed (Haiku for Claude) so the sidebar can
+    // blur+lock them — and so memory categories have a reliable fallback. Best-effort.
+    try {
+      await classifyConversations(store, provider, cfg, { signal: extractAbort });
+    } catch {
+      /* classify is non-essential; ignore */
+    }
+    // Consolidate: merge near-duplicates, prune trivia, assign buckets. Falls back to
+    // the raw facts on failure, so we never lose memories.
+    let merged = result.facts;
+    try {
+      merged = await consolidateFacts(result.facts, provider, cfg, { signal: extractAbort });
+    } catch {
+      /* keep raw facts */
+    }
+    // Fallback category: inherit the source conversation's classified bucket.
+    const convCat = {};
+    for (const e of store.list()) if (e.category) convCat[e.id] = e.category;
+    const facts = merged.map((f, i) => ({
+      id: `f${i}`,
+      text: f.text,
+      from: f.from,
+      category: f.category || convCat[f.from[0]] || undefined,
+      sensitive: !!f.sensitive,
+    }));
     const doc = {
       facts,
       followups: result.followups,
@@ -135,13 +160,6 @@ ipcMain.handle("extract-memories", async (event, { providerId, config, limit }) 
       processed: result.conversationsProcessed,
     };
     await saveFacts(doc);
-    // Tag conversations as sensitive/bucketed (Haiku for Claude) so the sidebar can
-    // blur+lock them. Best-effort — a failure here must not fail the extraction.
-    try {
-      await classifyConversations(store, provider, cfg, { signal: extractAbort });
-    } catch {
-      /* classify is non-essential; ignore */
-    }
     return doc;
   } catch (err) {
     return { error: err.message };

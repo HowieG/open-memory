@@ -64,6 +64,9 @@ button.link.danger:hover { color: #b00020; }
 
 /* memories */
 .memories { padding: 28px 32px; max-width: 860px; overflow: auto; }
+/* invisible scrollbar — the pane still scrolls, just no visible track */
+.memories { scrollbar-width: none; -ms-overflow-style: none; }
+.memories::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .memories h2 { margin: 0 0 4px; font-size: 28px; font-family: var(--font-display); font-weight: 500; }
 .memories .note { color: var(--muted); font-size: 13px; margin-bottom: 16px; max-width: 60ch; }
 .memories .status { margin-bottom: 16px; }
@@ -90,12 +93,18 @@ button.link.danger:hover { color: #b00020; }
 .prov:hover { color: var(--ink); text-decoration: underline; }
 
 /* ---- bucketed memories grid ---- */
-.memories-wide { max-width: 1000px; }
+.memories-wide { max-width: none; }
 .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 22px 0 10px; font: 11px var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .section-hint { text-transform: none; letter-spacing: 0; font-size: 11px; }
 
+.threads-wrap { position: relative; }
 .threads { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
-.thread-card { border: 1px solid var(--line); border-radius: 12px; background: #fff; padding: 12px 14px; font-size: 14px; color: var(--ink); }
+.threads-wrap.collapsed .threads { max-height: 56px; overflow: hidden; }
+.thread-card { border: 1px solid var(--line); border-radius: 12px; background: #fff; padding: 12px 14px; font-size: 14px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.threads-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 64px; display: flex; align-items: flex-end; justify-content: center; background: linear-gradient(to bottom, transparent, var(--paper) 78%); pointer-events: none; }
+.threads-toggle { pointer-events: auto; background: #fff; color: var(--ink); border: 1px solid var(--line); border-radius: 999px; padding: 5px 16px; font-size: 12px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.threads-toggle:hover { background: #f5f3ec; }
+.threads-toggle.inline { margin: 10px auto 0; display: block; box-shadow: none; }
 
 .bucket-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 13px; color: var(--ink); cursor: pointer; }

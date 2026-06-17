@@ -116,6 +116,7 @@ export function MemoriesView(props: Props) {
   const [endpoint, setEndpoint] = useState("http://localhost:11434");
   const [tier, setTier] = useState<"free" | "premium">("free");
   const [filter, setFilter] = useState<"All" | Bucket>("All");
+  const [threadsOpen, setThreadsOpen] = useState(false);
   const limit = tier === "free" ? FREE_LIMIT : undefined;
 
   const selected = providers.find((p) => p.id === providerId) ?? providers[0];
@@ -168,11 +169,29 @@ export function MemoriesView(props: Props) {
         {memories!.followups.length > 0 && (
           <>
             <div className="section-head">Open threads</div>
-            <div className="threads">
-              {memories!.followups.map((t, i) => (
-                <div className="thread-card" key={i}>{t}</div>
-              ))}
-            </div>
+            {(() => {
+              const many = memories!.followups.length > 3;
+              const collapsed = many && !threadsOpen;
+              return (
+                <div className={"threads-wrap" + (collapsed ? " collapsed" : "")}>
+                  <div className="threads">
+                    {memories!.followups.map((t, i) => (
+                      <div className="thread-card" key={i}>{t}</div>
+                    ))}
+                  </div>
+                  {collapsed && (
+                    <div className="threads-fade">
+                      <button className="threads-toggle" onClick={() => setThreadsOpen(true)}>
+                        View all {memories!.followups.length} ↓
+                      </button>
+                    </div>
+                  )}
+                  {many && threadsOpen && (
+                    <button className="threads-toggle inline" onClick={() => setThreadsOpen(false)}>View less ↑</button>
+                  )}
+                </div>
+              );
+            })()}
           </>
         )}
 

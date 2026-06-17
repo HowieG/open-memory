@@ -63,11 +63,13 @@ interface ExtractionUpdate {
 
 const SYSTEM_PROMPT =
   "You extract durable facts about a user from ONE of their AI chat conversations. " +
-  "Identify NEW, durable knowledge about them — who they are, their interests, what they're " +
-  "researching, considering, or have decided. Skip ephemeral details. Also propose follow-up " +
-  "questions that would complete the picture of them. " +
+  "Be SELECTIVE: capture only NEW, durable, meaningful knowledge about who they are — their identity, " +
+  "ongoing projects, decisions, preferences, and circumstances. Do NOT record ephemeral details, " +
+  "one-off questions, generic technical Q&A, or facts about the assistant's answer rather than the user. " +
+  "Prefer a few high-signal facts over many trivial ones; emit at most 5, and none if the conversation " +
+  "reveals nothing durable about the user. Also propose follow-up questions that would complete their picture. " +
   "For EACH fact, assign a category bucket — exactly one of: Body (health, fitness, body), " +
-  "Work (career, projects, business, finances of work), Places (travel, where they live/go), " +
+  "Work (career, projects, building, business), Places (travel, where they live/go), " +
   "Taste (style, food, music, aesthetic preferences), People (relationships, family, friends), " +
   "Money (personal finance, income, investments). Also mark sensitive=true when the fact concerns " +
   "health, finances, employment, or relationships. " +

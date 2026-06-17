@@ -18,6 +18,8 @@ export { extractMemories, parseExtraction, BUCKETS, toBucket } from "./memory/ex
 export type { KnowledgeFact, ExtractedFact, ExtractionResult, ExtractOptions, Bucket } from "./memory/extractor";
 export { classifyConversations, parseClassification, buildClassifyPrompt, CLASSIFY_SYSTEM_PROMPT } from "./memory/classify";
 export type { ConversationTag } from "./memory/classify";
+export { consolidateFacts, parseConsolidation, buildConsolidatePrompt, CONSOLIDATE_SYSTEM_PROMPT } from "./memory/consolidate";
+export type { ConsolidatedFact } from "./memory/consolidate";
 export {
   extractEmojiPortrait,
   chunkConversations,

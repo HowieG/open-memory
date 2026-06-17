@@ -32,6 +32,8 @@ export interface ProviderConfig {
   apiKey?: string;
   model?: string;
   endpoint?: string;
+  /** cap on output tokens (the consolidation pass needs a larger budget) */
+  maxTokens?: number;
   /** called before each rate-limit backoff so the UI can communicate the pause */
   onRateLimit?: (info: RateLimitInfo) => void;
 }
@@ -87,7 +89,7 @@ const claude: MemoryProvider = {
     const j = (await postJson(
       "https://api.anthropic.com/v1/messages",
       { "x-api-key": key, "anthropic-version": "2023-06-01" },
-      { model: cfg.model ?? this.info.defaultModel, max_tokens: 1024, system, messages: [{ role: "user", content: user }] },
+      { model: cfg.model ?? this.info.defaultModel, max_tokens: cfg.maxTokens ?? 1024, system, messages: [{ role: "user", content: user }] },
       cfg.onRateLimit,
     )) as { content?: { text?: string }[] };
     return j.content?.[0]?.text ?? "";
@@ -102,7 +104,7 @@ const openai: MemoryProvider = {
     const j = (await postJson(
       "https://api.openai.com/v1/chat/completions",
       { authorization: `Bearer ${key}` },
-      { model: cfg.model ?? this.info.defaultModel, messages: [{ role: "system", content: system }, { role: "user", content: user }] },
+      { model: cfg.model ?? this.info.defaultModel, messages: [{ role: "system", content: system }, { role: "user", content: user }], ...(cfg.maxTokens ? { max_tokens: cfg.maxTokens } : {}) },
       cfg.onRateLimit,
     )) as { choices?: { message?: { content?: string } }[] };
     return j.choices?.[0]?.message?.content ?? "";
@@ -118,7 +120,7 @@ const gemini: MemoryProvider = {
     const j = (await postJson(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
       {},
-      { systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: user }] }] },
+      { systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: user }] }], ...(cfg.maxTokens ? { generationConfig: { maxOutputTokens: cfg.maxTokens } } : {}) },
       cfg.onRateLimit,
     )) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
     return j.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
@@ -132,7 +134,7 @@ const ollama: MemoryProvider = {
     const j = (await postJson(
       `${endpoint}/api/chat`,
       {},
-      { model: cfg.model ?? this.info.defaultModel, stream: false, messages: [{ role: "system", content: system }, { role: "user", content: user }] },
+      { model: cfg.model ?? this.info.defaultModel, stream: false, messages: [{ role: "system", content: system }, { role: "user", content: user }], ...(cfg.maxTokens ? { options: { num_predict: cfg.maxTokens } } : {}) },
       cfg.onRateLimit,
     )) as { message?: { content?: string } };
     return j.message?.content ?? "";
@@ -195,6 +197,16 @@ const stub: MemoryProvider = {
         tags.push({ id: id!, sensitive, category });
       }
       return JSON.stringify(tags);
+    }
+    if (/consolidate/i.test(system)) {
+      // Consolidation pass: identity — echo each "[i] cat=X sens=0/1 :: text" line back.
+      const out: { text: string; category: string; sensitive: boolean; sources: number[] }[] = [];
+      const re = /\[(\d+)\] cat=(\S+) sens=([01]) :: (.*)/g;
+      for (let m = re.exec(user); m; m = re.exec(user)) {
+        const [, idx, cat, sens, text] = m;
+        out.push({ text: text!.trim(), category: cat === "?" ? "" : cat!, sensitive: sens === "1", sources: [Number(idx)] });
+      }
+      return JSON.stringify(out);
     }
     const title = /title: "(.*?)"/.exec(user)?.[1]?.trim();
     const subject = title || "this conversation";
