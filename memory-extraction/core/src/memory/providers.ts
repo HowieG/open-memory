@@ -27,6 +27,8 @@ export interface ProviderConfig {
   apiKey?: string;
   model?: string;
   endpoint?: string;
+  /** max output tokens — the emoji portrait needs more than the default for ~20 items */
+  maxTokens?: number;
 }
 
 export interface MemoryProvider {
@@ -48,7 +50,7 @@ const claude: MemoryProvider = {
     const j = (await postJson(
       "https://api.anthropic.com/v1/messages",
       { "x-api-key": key, "anthropic-version": "2023-06-01" },
-      { model: cfg.model ?? this.info.defaultModel, max_tokens: 1024, system, messages: [{ role: "user", content: user }] },
+      { model: cfg.model ?? this.info.defaultModel, max_tokens: cfg.maxTokens ?? 1024, system, messages: [{ role: "user", content: user }] },
     )) as { content?: { text?: string }[] };
     return j.content?.[0]?.text ?? "";
   },

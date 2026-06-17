@@ -56,10 +56,16 @@ describe("emoji-set", () => {
     expect(new Set(CURATED_EMOJI).size).toBe(CURATED_EMOJI.length); // no dupes
   });
 
-  it("coerces an off-set emoji back into the set via the keyword", () => {
-    expect(coerceEmoji("🦄", "my motorcycle")).toBe("🏍️"); // 🦄 not curated -> derived
+  it("coerces an off-set emoji to the neutral fallback (never an accidental match)", () => {
+    expect(coerceEmoji("🦄", "my motorcycle")).toBe(FALLBACK_EMOJI); // 🦄 not curated -> ✨
     expect(coerceEmoji("💻", "coding")).toBe("💻"); // allowed -> kept
     expect(isAllowedEmoji("🦄")).toBe(false);
+  });
+
+  it("matches keywords on whole words, not substrings", () => {
+    expect(mapKeywordToEmoji("uruguay flag identification")).toBe(FALLBACK_EMOJI); // not 🐈 from 'identifiCATion'
+    expect(mapKeywordToEmoji("rain boots quality check")).toBe(FALLBACK_EMOJI); // not 🤖 from 'rAIn'
+    expect(mapKeywordToEmoji("coffee tasting")).toBe("☕"); // real word match still works
   });
 });
 
@@ -94,16 +100,13 @@ describe("buildEmojiUserPrompt", () => {
 describe("parseEmojiItems", () => {
   const chunk = [conv("a", "A", ["t"]), conv("b", "B", ["t"])];
 
-  it("parses a fenced JSON array and coerces emoji + convId", () => {
+  it("parses a fenced JSON array; keeps an allowed emoji, falls back off-set", () => {
     const raw =
-      'Here:\n```json\n[{"keyword":"My Motorcycle","emoji":"🦄","convId":"a","excerpt":"rebuilt the carb"}]\n```';
-    const [sig] = parseEmojiItems(raw, chunk);
-    expect(sig).toEqual({
-      keyword: "my motorcycle",
-      emoji: "🏍️", // 🦄 coerced into the set
-      sourceConvId: "a",
-      excerpt: "rebuilt the carb",
-    });
+      'Here:\n```json\n[{"keyword":"My Motorcycle","emoji":"🏍️","convId":"a","excerpt":"rebuilt the carb"},' +
+      '{"keyword":"unicorn lore","emoji":"🦄","convId":"b","excerpt":"x"}]\n```';
+    const sigs = parseEmojiItems(raw, chunk);
+    expect(sigs[0]).toEqual({ keyword: "my motorcycle", emoji: "🏍️", sourceConvId: "a", excerpt: "rebuilt the carb" });
+    expect(sigs[1]!.emoji).toBe("✨"); // 🦄 not in the set -> neutral fallback, not a wrong guess
   });
 
   it("falls back to the chunk's first conv when convId is unknown", () => {

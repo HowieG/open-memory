@@ -61,9 +61,29 @@ const KEYWORD_RULES: Array<[string[], string]> = [
   [["love", "relationship", "dating", "marriage"], "❤️"],
 ];
 
+/** Extra emoji the model may choose beyond the keyword-rule set — broad coverage
+ *  across hobbies, work, places, food, animals, and life so an identity signal
+ *  rarely falls back to ✨. Tasteful subset (no faces/flags that read oddly). */
+const EXTRA_EMOJI: string[] = [
+  // sport & outdoors
+  "⚽", "🏀", "🎾", "🏈", "⚾", "🥊", "🏆", "🎣", "🛹", "🏄", "🚴", "🏊", "⛷️", "🏂", "🤿", "🥾", "⛺", "🎯", "🏇", "🧘‍♂️",
+  // music & creative
+  "🎹", "🥁", "🎺", "🎷", "🎻", "🎤", "🎧", "🎮", "🎲", "♟️", "🃏", "🎭", "🎟️", "🖌️", "🪕", "📝", "🖊️",
+  // tech & work
+  "📱", "⌨️", "🖥️", "🧠", "🔧", "⚙️", "🔭", "🧪", "🧬", "💡", "📡", "🛰️", "💸", "🏦", "💳", "📉", "⚖️", "🧮", "🔐",
+  // places & travel
+  "🌍", "🗺️", "🚆", "🛳️", "🏔️", "🏝️", "🏜️", "🌋", "🗽", "🏰", "⛩️", "🕌", "⛪", "🎡", "🚀", "🏙️", "🛶",
+  // food & drink
+  "🍷", "🍺", "🥃", "🍣", "🍕", "🍔", "🌮", "🥗", "🍰", "🧁", "🥐", "🍫", "🌶️", "🧀", "🍎", "🫖", "🍵",
+  // animals & nature
+  "🐦", "🦋", "🐢", "🐠", "🦊", "🐻", "🐼", "🦁", "🐧", "🐙", "🦕", "🌲", "🌵", "🍄", "🌸", "🔥", "🌙", "⭐", "🌊", "🪸",
+  // life & body
+  "❤️", "🧗", "🕺", "💃", "🎓", "🏡", "🔑", "👟", "🎒", "🧳", "🪙", "🩹", "🦷", "💪", "🧴", "🧵",
+];
+
 /** The allowlist the model may choose from (and we validate against). */
 export const CURATED_EMOJI: string[] = [
-  ...new Set(KEYWORD_RULES.map(([, e]) => e)),
+  ...new Set([...KEYWORD_RULES.map(([, e]) => e), ...EXTRA_EMOJI]),
   FALLBACK_EMOJI,
 ];
 
@@ -73,19 +93,24 @@ export function isAllowedEmoji(emoji: string): boolean {
   return ALLOWED.has(emoji);
 }
 
-/** Deterministic keyword→emoji. Used by the stub provider and as the fallback
- *  when a model returns an emoji outside the curated set. */
+/** Deterministic keyword→emoji, matched on WHOLE WORDS (not substrings — so
+ *  "identifi*cat*ion" never matches "cat", "r*ai*n" never matches "ai"). Used by
+ *  the offline stub and as a last-resort fallback. Multi-word needles match as a
+ *  phrase. */
 export function mapKeywordToEmoji(keyword: string): string {
   const k = keyword.toLowerCase();
+  const words = new Set(k.split(/[^a-z0-9+#]+/).filter(Boolean));
   for (const [needles, emoji] of KEYWORD_RULES) {
-    if (needles.some((n) => k.includes(n))) return emoji;
+    for (const n of needles) {
+      if (n.includes(" ") ? k.includes(n) : words.has(n)) return emoji;
+    }
   }
   return FALLBACK_EMOJI;
 }
 
-/** Coerce a model-supplied emoji to the curated set: keep it if allowed,
- *  otherwise derive one from the keyword. Never returns an off-set emoji. */
-export function coerceEmoji(emoji: string | undefined, keyword: string): string {
-  if (emoji && isAllowedEmoji(emoji)) return emoji;
-  return mapKeywordToEmoji(keyword);
+/** Coerce a model-supplied emoji to the curated set: trust it if it's in the
+ *  allowlist (the model picked it for THIS keyword), otherwise fall back to the
+ *  neutral ✨ — never to an accidental word-match, which reads as random. */
+export function coerceEmoji(emoji: string | undefined, _keyword?: string): string {
+  return emoji && isAllowedEmoji(emoji) ? emoji : FALLBACK_EMOJI;
 }

@@ -24,19 +24,21 @@ function radialPos(i: number): { x: number; y: number } {
 
 type Phase = "consent" | "drawing" | "done" | "error";
 
+// Haiku for cost (the brief's "light model"); the prompt does the heavy lifting.
+const PORTRAIT_MODEL = "claude-haiku-4-5-20251001";
+
 export function PortraitView({
-  providerId = "stub",
-  config = {},
   onOpenConversation,
   onSkip,
 }: {
-  providerId?: string;
-  config?: { apiKey?: string; endpoint?: string };
   onOpenConversation: (convId: string) => void;
   onSkip: () => void;
 }) {
   const api = window.api;
   const [phase, setPhase] = useState<Phase>("consent");
+  // BYO Anthropic key — without it we fall back to an offline preview (low quality).
+  // localStorage is a stopgap; safeStorage in main is the proper home (deferred).
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem("om-anthropic-key") ?? "");
   const [signals, setSignals] = useState<EmojiSignal[]>([]);
   const [active, setActive] = useState<EmojiSignal | null>(null);
   const [convCount, setConvCount] = useState(0);
@@ -73,6 +75,11 @@ export function PortraitView({
   async function draw(force = false) {
     if (runningRef.current) return;
     runningRef.current = true;
+    const key = apiKey.trim();
+    if (key) localStorage.setItem("om-anthropic-key", key);
+    // Real portrait via Claude (Haiku) when a key is present; offline stub preview otherwise.
+    const providerId = key ? "claude" : "stub";
+    const config = key ? { apiKey: key, model: PORTRAIT_MODEL } : {};
     setPhase("drawing");
     setSignals([]);
     setError(null);
@@ -105,9 +112,24 @@ export function PortraitView({
           To do this your chat messages are sent to Claude. Everything else in OpenMemory stays on
           your machine. You bring your own key, so you pay for and control the request.
         </p>
+        <input
+          className="key-input"
+          data-testid="portrait-key"
+          type="password"
+          autoComplete="off"
+          spellCheck={false}
+          placeholder="sk-ant-… (your Anthropic API key)"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+        />
+        <p className="fineprint">
+          {apiKey.trim()
+            ? "We'll read your conversations with Claude Haiku and draw the real thing."
+            : "No key? We'll show a quick local preview instead — lower quality, just titles."}
+        </p>
         <div className="consent-actions">
           <button data-testid="portrait-yes" onClick={() => draw()}>
-            Yes — draw my portrait
+            {apiKey.trim() ? "Yes — draw my portrait" : "Show me a preview"}
           </button>
           <button className="secondary" data-testid="portrait-no" onClick={onSkip}>
             No thanks

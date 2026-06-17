@@ -44,14 +44,23 @@ export interface EmojiPortraitOptions {
 }
 
 export const EMOJI_SYSTEM_PROMPT =
-  "You read a person's AI chat history and draw a portrait of WHO THEY ARE as a " +
-  "small set of emoji. Pick things UNIQUE TO THEM — things they own, do, build, or " +
-  "genuinely care about (their motorcycle, their startup, their running habit) — NOT " +
-  "things they merely mentioned or asked about once (a book they referenced, a " +
-  "celebrity, a generic question). Prefer signals that recur or are recent. For each, " +
-  "choose ONE emoji from the ALLOWED list and quote a short snippet of the user's own " +
-  'words. Reply with ONLY a JSON array: [{"keyword": string, "emoji": string, ' +
-  '"convId": string, "excerpt": string}]. keyword is a short lowercase phrase. No prose.';
+  "You read a person's real AI chat history and draw a portrait of WHO THEY ARE as a " +
+  "few emoji. Surface their DURABLE IDENTITY — what they do for work, their hobbies, " +
+  "things they own and maintain, places tied to them, people/pets, recurring projects, " +
+  "values. A good signal recurs across conversations or is clearly part of their life " +
+  "(they tune THEIR motorcycle, they ship THEIR startup, they train for THEIR marathon).\n" +
+  "HARD RULES — do NOT include:\n" +
+  "- one-off curiosity questions (a trivia lookup, 'what flag is this', a random fact)\n" +
+  "- a thing mentioned in a SINGLE conversation with no sign they own/do it\n" +
+  "- generic tech how-tos unless coding/their field is clearly their work\n" +
+  "- the literal conversation title — infer the underlying trait, not the topic.\n" +
+  "Quality over quantity: return FEWER, stronger signals rather than padding. Merge " +
+  "near-duplicates (don't list 'running' and 'marathon' separately). For each signal " +
+  "pick the single best emoji from the ALLOWED list (use ✨ only if nothing fits), a " +
+  "2-4 word lowercase keyword naming the TRAIT (not the question), the convId of the " +
+  "most representative conversation, and a short verbatim snippet of the user's words.\n" +
+  'Reply with ONLY a JSON array, best signals first: [{"keyword": string, "emoji": ' +
+  'string, "convId": string, "excerpt": string}]. No prose.';
 
 function userText(conv: CanonicalConversation): string {
   return conv.messages
@@ -151,7 +160,12 @@ export async function* extractEmojiPortrait(
     if (opts.signal?.aborted || count >= max) break;
     let raw: string;
     try {
-      raw = await opts.provider.complete(EMOJI_SYSTEM_PROMPT, buildEmojiUserPrompt(chunk), opts.config);
+      // ~20 items with excerpts need more than the default output budget, or the
+      // JSON gets truncated mid-array and the whole chunk fails to parse.
+      raw = await opts.provider.complete(EMOJI_SYSTEM_PROMPT, buildEmojiUserPrompt(chunk), {
+        ...opts.config,
+        maxTokens: opts.config?.maxTokens ?? 2048,
+      });
     } catch {
       // a failed chunk drops its signals but never wipes what's already placed
       continue;
