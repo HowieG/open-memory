@@ -9,7 +9,9 @@ import { _electron as electron } from "playwright";
  * Autonomous QA of the full flow: upload a Claude export -> "uploaded to your
  * memory store" confirmation with conversation titles -> Next -> the "Your
  * memories" page (dummy facts + a source-tagged sidebar) -> click a conversation
- * -> it renders. Drives the real Electron UI end to end.
+ * -> it renders. Plus the emoji-portrait first-delight flow (consent -> streamed
+ * radial portrait via the offline stub provider -> hover excerpt -> open convo).
+ * Drives the real Electron UI end to end.
  */
 
 const HERE = __dirname;
@@ -64,5 +66,62 @@ test("upload -> memory store confirmation -> memories page -> render a conversat
   await expect(win.getByText("Hello from the test")).toBeVisible();
 
   await win.screenshot({ path: path.join(HERE, "qa.png") });
+  await app.close();
+});
+
+test("emoji portrait: import -> consent -> streamed radial portrait -> hover excerpt -> open convo", async () => {
+  // Fresh store so the app boots into the import flow (where the portrait is offered).
+  const freshStore = mkdtempSync(path.join(tmpdir(), "om-store-portrait-"));
+  const app = await electron.launch({ args: [APP_DIR], env: { ...process.env, OM_STORE_DIR: freshStore } });
+  await app.evaluate(async ({ dialog }, p) => {
+    dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [p] });
+  }, zipPath);
+  const win = await app.firstWindow();
+
+  // import, then choose "Draw my portrait"
+  await win.getByTestId("pick").click();
+  await expect(win.getByTestId("to-portrait")).toBeVisible({ timeout: 30_000 });
+  await win.getByTestId("to-portrait").click();
+
+  // consent tease gates the cloud call; say yes (uses the offline stub provider -> no network)
+  await expect(win.getByTestId("portrait-consent")).toBeVisible();
+  await win.getByTestId("portrait-yes").click();
+
+  // emojis stream onto the radial canvas (stub is deterministic from the fixture)
+  const tiles = win.getByTestId("emoji-tile");
+  await expect(tiles.first()).toBeVisible({ timeout: 30_000 });
+  await expect(win.getByTestId("portrait-count")).toContainText("portrait of you", { timeout: 30_000 });
+
+  // hover an emoji -> the source excerpt appears (proof it's from your own words)
+  await tiles.first().hover();
+  await expect(win.getByTestId("excerpt")).toBeVisible();
+
+  await win.screenshot({ path: path.join(HERE, "qa-portrait.png") });
+
+  // clicking an emoji opens its source conversation
+  await tiles.first().click();
+  await expect(win.locator(".conv-head")).toBeVisible({ timeout: 10_000 });
+
+  await app.close();
+});
+
+test("emoji portrait: consent 'no' falls back to the titles/memories view", async () => {
+  const freshStore = mkdtempSync(path.join(tmpdir(), "om-store-noconsent-"));
+  const app = await electron.launch({ args: [APP_DIR], env: { ...process.env, OM_STORE_DIR: freshStore } });
+  await app.evaluate(async ({ dialog }, p) => {
+    dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [p] });
+  }, zipPath);
+  const win = await app.firstWindow();
+
+  await win.getByTestId("pick").click();
+  await expect(win.getByTestId("to-portrait")).toBeVisible({ timeout: 30_000 });
+  await win.getByTestId("to-portrait").click();
+  await expect(win.getByTestId("portrait-consent")).toBeVisible();
+
+  // decline -> no portrait, land on the memories view
+  await win.getByTestId("portrait-no").click();
+  await expect(win.getByTestId("estimate")).toBeVisible({ timeout: 10_000 });
+  await expect(win.getByTestId("portrait")).toHaveCount(0);
+
   await app.close();
 });
