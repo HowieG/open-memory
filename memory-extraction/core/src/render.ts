@@ -40,9 +40,13 @@ function renderConversation(c: CanonicalConversation): string {
 
 export function renderConversationsHtml(
   convs: CanonicalConversation[],
-  opts: { source: string; failed?: number },
+  opts: { source: string; failed?: number; header?: boolean },
 ): string {
   const body = convs.map(renderConversation).join("\n<hr/>\n");
+  const header =
+    opts.header === false
+      ? ""
+      : `<p class="meta">${esc(opts.source)} · ${convs.length} conversations${opts.failed ? ` · ${opts.failed} failed` : ""}</p>`;
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(opts.source)} preview</title>
 <style>
   body{font:15px/1.5 -apple-system,system-ui,sans-serif;max-width:820px;margin:0 auto;padding:24px;color:#16171A;background:#EDEBE4}
@@ -59,7 +63,7 @@ export function renderConversationsHtml(
   .msg.user .bubble pre{background:#000}
   hr{border:none;border-top:2px dashed #ccc;margin:32px 0}
 </style></head><body>
-<p class="meta">${esc(opts.source)} · ${convs.length} conversations${opts.failed ? ` · ${opts.failed} failed` : ""}</p>
+${header}
 ${body}
 </body></html>`;
 }

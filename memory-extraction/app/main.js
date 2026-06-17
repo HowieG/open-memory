@@ -4,13 +4,17 @@ const { ingestZip, renderConversationsHtml } = require("./core.cjs");
 
 /**
  * Minimal Electron main process. The Node side runs the headless ingest core
- * (bundled into core.cjs); the renderer is just UI. Files never leave the machine.
+ * (bundled into core.cjs) and holds an in-memory conversation store that
+ * accumulates across uploads — a stand-in for the per-conversation store (T6).
+ * Files never leave the machine.
  */
+
+const store = new Map(); // id -> CanonicalConversation
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 1120,
-    height: 840,
+    width: 1180,
+    height: 860,
     backgroundColor: "#EDEBE4",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -21,10 +25,14 @@ function createWindow() {
   win.loadFile("index.html");
 }
 
-async function ingestAndRender(zipPath) {
+function light(c) {
+  return { id: c.id, title: c.title || "(untitled)", source: c.source };
+}
+
+async function ingestAndStore(zipPath) {
   const { source, conversations, failed } = await ingestZip(zipPath);
-  const html = renderConversationsHtml(conversations, { source, failed: failed.length });
-  return { source, count: conversations.length, failed: failed.length, html, path: zipPath };
+  for (const c of conversations) store.set(c.id, c); // upsert, newer wins
+  return { source, count: conversations.length, failed: failed.length, uploaded: conversations.map(light) };
 }
 
 ipcMain.handle("pick-and-ingest", async () => {
@@ -35,7 +43,7 @@ ipcMain.handle("pick-and-ingest", async () => {
   });
   if (res.canceled || !res.filePaths[0]) return { canceled: true };
   try {
-    return await ingestAndRender(res.filePaths[0]);
+    return await ingestAndStore(res.filePaths[0]);
   } catch (err) {
     return { error: err.message };
   }
@@ -43,10 +51,18 @@ ipcMain.handle("pick-and-ingest", async () => {
 
 ipcMain.handle("ingest-path", async (_event, zipPath) => {
   try {
-    return await ingestAndRender(zipPath);
+    return await ingestAndStore(zipPath);
   } catch (err) {
     return { error: err.message };
   }
+});
+
+ipcMain.handle("list-conversations", () => [...store.values()].map(light));
+
+ipcMain.handle("get-conversation", (_event, id) => {
+  const c = store.get(id);
+  if (!c) return { error: "conversation not found" };
+  return { html: renderConversationsHtml([c], { source: c.source, header: false }) };
 });
 
 app.whenReady().then(() => {
