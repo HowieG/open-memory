@@ -49,6 +49,7 @@ button {
 .om-logo { flex: 0 0 16px; width: 16px; height: 16px; display: grid; place-items: center; }
 .om-title { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .om-dot { color: #999; }
+.om-logo-img { width: 16px; height: 16px; object-fit: contain; display: block; }
 
 /* memories */
 .screen.memories { flex-direction: row; }
