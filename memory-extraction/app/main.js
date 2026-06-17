@@ -6,9 +6,11 @@ const {
   renderConversationsHtml,
   ConversationStore,
   memoryEligibility,
+  memoryExtractionSource,
   rankProviders,
   PROVIDERS,
   extractMemories,
+  extractEmojiPortrait,
 } = require("./core.cjs");
 
 /**
@@ -156,6 +158,42 @@ ipcMain.handle("forget-fact", async (_event, id) => {
   doc.facts = doc.facts.filter((f) => f.id !== id);
   await saveFacts(doc);
   return doc;
+});
+
+// --- emoji portrait (first-delight) ---
+// Streams {keyword,emoji,sourceConvId,excerpt} signals to the renderer as each
+// map-reduce chunk returns. BYO key arrives in `config` (same as extract-memories).
+// `stub` provider needs no key — drives offline/e2e. Returns a summary when done.
+let emojiAbort = null;
+
+ipcMain.handle("start-emoji-portrait", async (event, { providerId, config, max } = {}) => {
+  const provider = PROVIDERS[providerId];
+  if (!provider) return { error: `unknown provider "${providerId}"` };
+  emojiAbort = { aborted: false };
+  try {
+    const conversations = [];
+    for await (const c of memoryExtractionSource(store)) conversations.push(c);
+    let count = 0;
+    for await (const sig of extractEmojiPortrait(conversations, {
+      provider,
+      config,
+      max: typeof max === "number" ? max : undefined,
+      signal: emojiAbort,
+    })) {
+      if (emojiAbort?.aborted) break;
+      event.sender.send("emoji-signal", sig);
+      count++;
+    }
+    return { count, conversations: conversations.length };
+  } catch (err) {
+    return { error: err.message };
+  } finally {
+    emojiAbort = null;
+  }
+});
+
+ipcMain.handle("cancel-emoji-portrait", () => {
+  if (emojiAbort) emojiAbort.aborted = true;
 });
 
 app.whenReady().then(async () => {

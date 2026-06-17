@@ -37,7 +37,7 @@ const KEYWORD_RULES: Array<[string[], string]> = [
   [["dog", "puppy"], "🐕"],
   [["cat", "kitten"], "🐈"],
   [["travel", "trip", "flight", "vacation", "backpacking"], "✈️"],
-  [["code", "coding", "programming", "software", "developer", "engineer"], "💻"],
+  [["code", "coding", "programming", "software", "developer", "engineer", "python", "javascript", "typescript", "rust", "react", "golang"], "💻"],
   [["ai", "machine learning", "llm", "model", "neural"], "🤖"],
   [["data", "analytics", "statistics", "dashboard"], "📊"],
   [["startup", "founder", "entrepreneur", "company", "business"], "🚀"],
