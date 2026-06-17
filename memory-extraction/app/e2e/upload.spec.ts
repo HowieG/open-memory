@@ -6,9 +6,10 @@ import { expect, test } from "@playwright/test";
 import { _electron as electron } from "playwright";
 
 /**
- * Autonomous QA: launch the real Electron app, stub the native file dialog to
- * return a synthetic Claude export, click "Choose file", and assert the
- * conversations actually render. Proves ingest -> render through the live UI.
+ * Autonomous QA of the full flow: upload a Claude export -> "uploaded to your
+ * memory store" confirmation with conversation titles -> Next -> the "Your
+ * memories" page (dummy facts + a source-tagged sidebar) -> click a conversation
+ * -> it renders. Drives the real Electron UI end to end.
  */
 
 const HERE = __dirname;
@@ -19,31 +20,42 @@ let zipPath: string;
 
 test.beforeAll(() => {
   const tmp = mkdtempSync(path.join(tmpdir(), "om-e2e-"));
-  // Prefix triggers source detection; -j junks paths so entries sit at the root.
   zipPath = path.join(tmp, "CLAUDE_EXPORT_e2e-sample.zip");
   execSync(
     `zip -j -q "${zipPath}" "${path.join(SAMPLE_DIR, "conversations.json")}" "${path.join(SAMPLE_DIR, "users.json")}"`,
   );
 });
 
-test("choose a Claude export, conversations render in the window", async () => {
+test("upload -> memory store confirmation -> memories page -> render a conversation", async () => {
   const app = await electron.launch({ args: [APP_DIR] });
-
-  // Stub the native open dialog (Playwright can't drive OS chrome).
   await app.evaluate(async ({ dialog }, p) => {
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [p] });
   }, zipPath);
 
   const win = await app.firstWindow();
+
+  // 1. upload
   await win.click("#pick");
 
-  await expect(win.locator("#status")).toContainText("claude:", { timeout: 30_000 });
-  await expect(win.locator("#status")).toContainText("2 conversations");
+  // 2. confirmation screen with the conversation titles
+  await expect(win.getByText("Conversations uploaded to your memory store")).toBeVisible({ timeout: 30_000 });
+  await expect(win.locator("#uploaded-list")).toContainText("E2E Test Conversation");
+  await expect(win.locator("#uploaded-list")).toContainText("Second Conversation");
 
-  // The rendered conversations live in the result iframe.
-  const frame = win.frameLocator("#view");
+  // 3. Next -> memories page
+  await win.click("#next");
+  await expect(win.locator("#mem-facts h2")).toHaveText("Your memories");
+  await expect(win.locator("#mem-facts")).toContainText("Based in San Francisco");
+
+  // 4. sidebar lists all conversations, tagged with the Claude source logo
+  const items = win.locator("#mem-list .conv-item");
+  await expect(items).toHaveCount(2);
+  await expect(win.locator('#mem-list .conv-item .logo[title="claude"]').first()).toBeVisible();
+
+  // 5. clicking a conversation renders it
+  await win.locator("#mem-list .conv-item", { hasText: "E2E Test Conversation" }).click();
+  const frame = win.frameLocator("#mem-view");
   await expect(frame.locator("body")).toContainText("Hello from the test");
-  await expect(frame.locator("body")).toContainText("E2E Test Conversation");
 
   await win.screenshot({ path: path.join(HERE, "qa.png") });
   await app.close();

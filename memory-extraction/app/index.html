@@ -2,34 +2,92 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>open-memory · import</title>
+    <title>open-memory</title>
     <style>
-      :root { --ink: #16171A; --paper: #EDEBE4; }
+      :root { --ink: #16171A; --paper: #EDEBE4; --line: #d9d6cc; --muted: #8a8780; }
       * { box-sizing: border-box; }
-      body { margin: 0; font: 15px/1.5 -apple-system, system-ui, sans-serif; color: var(--ink); background: var(--paper); display: flex; flex-direction: column; height: 100vh; }
-      header { padding: 18px 24px 8px; }
-      header h1 { margin: 0; font-size: 20px; }
-      header p { margin: 2px 0 0; color: #777; font-size: 13px; }
-      #drop { margin: 14px 24px; padding: 26px; border: 2px dashed #bbb; border-radius: 14px; text-align: center; color: #555; background: #fff; transition: all .12s; }
-      #drop.hot { border-color: var(--ink); background: #fafafa; }
-      #pick { font: inherit; background: var(--ink); color: var(--paper); border: 0; border-radius: 10px; padding: 8px 16px; cursor: pointer; }
-      #status { padding: 0 24px 8px; font: 12px ui-monospace, monospace; min-height: 18px; }
-      #status.err { color: #b00020; }
-      #status.ok { color: #2a7; }
-      #view { flex: 1; border: 0; width: 100%; background: var(--paper); }
+      html, body { height: 100%; margin: 0; }
+      body { font: 15px/1.5 -apple-system, system-ui, sans-serif; color: var(--ink); background: var(--paper); display: flex; flex-direction: column; }
+      header { padding: 16px 24px; border-bottom: 1px solid var(--line); display: flex; align-items: baseline; gap: 10px; }
+      header h1 { margin: 0; font-size: 18px; }
+      header .sub { color: var(--muted); font-size: 12px; }
+      .screen { flex: 1; min-height: 0; display: none; }
+      .screen.active { display: flex; }
+
+      /* upload */
+      #screen-upload { align-items: center; justify-content: center; }
+      #drop { width: min(560px, 86%); padding: 40px; border: 2px dashed var(--line); border-radius: 16px; text-align: center; color: #555; background: #fff; transition: all .12s; }
+      #drop.hot { border-color: var(--ink); }
+      button { font: inherit; background: var(--ink); color: var(--paper); border: 0; border-radius: 10px; padding: 9px 18px; cursor: pointer; }
+      button:disabled { opacity: .4; cursor: default; }
+      .status { color: var(--muted); font: 12px ui-monospace, monospace; min-height: 16px; margin-top: 12px; }
+      .status.err { color: #b00020; }
+
+      /* uploaded confirmation */
+      #screen-uploaded { flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px; }
+      #screen-uploaded h2 { margin: 0; font-size: 22px; }
+      .checkline { display: flex; align-items: center; gap: 8px; color: var(--ink); }
+      .check { width: 20px; height: 20px; border-radius: 50%; background: var(--ink); color: var(--paper); display: grid; place-items: center; font-size: 12px; }
+      .titlelist { width: min(560px, 90%); max-height: 46vh; overflow: auto; background: #fff; border: 1px solid var(--line); border-radius: 14px; }
+
+      /* shared conversation row (used in confirmation list + sidebar) */
+      .conv-item { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--line); cursor: default; }
+      .conv-item:last-child { border-bottom: 0; }
+      .conv-item .logo { flex: 0 0 16px; width: 16px; height: 16px; display: grid; place-items: center; }
+      .conv-item .title { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+      /* memories */
+      #screen-memories { flex-direction: row; }
+      #mem-sidebar { width: 300px; flex: 0 0 300px; border-right: 1px solid var(--line); overflow: auto; background: #fff; }
+      #mem-sidebar .side-head { padding: 12px 14px; font: 11px ui-monospace, monospace; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--line); }
+      #mem-sidebar .conv-item { cursor: pointer; }
+      #mem-sidebar .conv-item:hover { background: #f5f3ec; }
+      #mem-sidebar .conv-item.active { background: #ece9df; }
+      #mem-main { flex: 1; min-width: 0; overflow: auto; }
+      #mem-facts { padding: 28px 32px; max-width: 720px; }
+      #mem-facts h2 { margin: 0 0 4px; font-size: 24px; }
+      #mem-facts .note { color: var(--muted); font-size: 12px; margin-bottom: 18px; }
+      #mem-facts ul { list-style: none; padding: 0; margin: 0; }
+      #mem-facts li { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; }
+      #mem-view { display: none; width: 100%; height: 100%; border: 0; }
+      .backbar { display: none; padding: 8px 16px; border-bottom: 1px solid var(--line); }
+      .backbar button { background: transparent; color: var(--ink); border: 1px solid var(--line); padding: 5px 12px; }
     </style>
   </head>
   <body>
     <header>
-      <h1>open-memory · import</h1>
-      <p>Everything stays on your machine. Nothing is uploaded.</p>
+      <h1>open-memory</h1>
+      <span class="sub">everything stays on your machine</span>
     </header>
-    <div id="drop">
-      Drop a <strong>ChatGPT</strong> or <strong>Claude</strong> export <code>.zip</code> here, or
-      <button id="pick">Choose file</button>
-    </div>
-    <div id="status"></div>
-    <iframe id="view"></iframe>
+
+    <section id="screen-upload" class="screen active">
+      <div id="drop">
+        <div>Drop a <strong>ChatGPT</strong> or <strong>Claude</strong> export <code>.zip</code> here</div>
+        <div style="margin:14px 0">or</div>
+        <button id="pick">Choose file</button>
+        <div id="status" class="status"></div>
+      </div>
+    </section>
+
+    <section id="screen-uploaded" class="screen">
+      <div class="checkline"><span class="check">✓</span><h2>Conversations uploaded to your memory store</h2></div>
+      <div id="uploaded-count" class="status"></div>
+      <div id="uploaded-list" class="titlelist"></div>
+      <button id="next">Next →</button>
+    </section>
+
+    <section id="screen-memories" class="screen">
+      <aside id="mem-sidebar">
+        <div class="side-head">Conversations</div>
+        <div id="mem-list"></div>
+      </aside>
+      <div id="mem-main">
+        <div class="backbar" id="backbar"><button id="back">← Your memories</button></div>
+        <div id="mem-facts"></div>
+        <iframe id="mem-view"></iframe>
+      </div>
+    </section>
+
     <script src="renderer.js"></script>
   </body>
 </html>
