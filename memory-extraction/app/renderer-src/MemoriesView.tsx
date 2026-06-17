@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Eligibility, Fact, MemoriesDoc, ProviderInfo } from "./env";
+import type { Eligibility, Fact, MemoriesDoc, ProviderInfo, RateLimitInfo } from "./env";
 
 /**
  * The "Your memories" hero. Three states, per the design review:
@@ -14,6 +14,7 @@ interface Props {
   memories: MemoriesDoc | null;
   extracting: boolean;
   progress: number;
+  rateLimited: RateLimitInfo | null;
   error: string | null;
   onExtract: (providerId: string, config: { apiKey?: string; endpoint?: string }, limit?: number) => void;
   onPreview: (limit?: number) => void;
@@ -69,7 +70,7 @@ function FactRow({
 const FREE_LIMIT = 25;
 
 export function MemoriesView(props: Props) {
-  const { eligibility, providers, memories, extracting, progress, error } = props;
+  const { eligibility, providers, memories, extracting, progress, rateLimited, error } = props;
   const [providerId, setProviderId] = useState(providers[0]?.id ?? "");
   const [apiKey, setApiKey] = useState("");
   const [endpoint, setEndpoint] = useState("http://localhost:11434");
@@ -89,6 +90,11 @@ export function MemoriesView(props: Props) {
         <div className="note">Reading your conversations and building a picture of you.</div>
         <div className="progress"><div className="bar" style={{ width: `${pct}%` }} /></div>
         <div className="status">{progress} of {total} conversations</div>
+        {rateLimited && (
+          <div className="ratelimit" data-testid="ratelimit">
+            ⏸ Hit a rate limit — pausing and retrying (waiting {Math.round(rateLimited.waitMs / 1000)}s, attempt {rateLimited.attempt})…
+          </div>
+        )}
         <button className="secondary" data-testid="cancel-extract" onClick={props.onCancel}>Cancel</button>
       </div>
     );
