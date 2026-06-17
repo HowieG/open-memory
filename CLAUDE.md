@@ -65,10 +65,12 @@ wired in `.claude/settings.json`) refuses to end a turn while tests are red,
 whenever `memory-extraction/core/` or `app/` has uncommitted changes.
 
 **Definition of done for any change under `memory-extraction/`:**
-- `cd memory-extraction/core && npm run typecheck && npm test` is green.
-- If `app/` changed: `cd memory-extraction/app && npm run e2e` is green. The e2e
-  (Playwright) launches the real Electron app, ingests a fixture export, asserts
-  conversations render, and screenshots to `app/e2e/qa.png` (Read it to eyeball).
+- If `core/` changed: `cd memory-extraction/core && npm run typecheck && npm test` is green.
+- If runtime code changed (`core/src`, an app `.js`/`.html`/`.css`, or the e2e
+  itself): `cd memory-extraction/app && npm run e2e` is green. The e2e (Playwright)
+  launches the real Electron app, ingests a fixture export, asserts the UI renders,
+  and screenshots to `app/e2e/qa.png` (Read it to eyeball). Docs/config/dep/asset-only
+  changes don't trigger the e2e.
 - Never report done on red. The hook enforces this — do not work around it.
 
 Run the app: `cd memory-extraction/app && npm start`, then drop or pick an export
