@@ -14,8 +14,10 @@ export { ConversationStore } from "./store";
 export { memoryExtractionSource, memoryEligibility, isEligibleForMemory } from "./memory-source";
 export { PROVIDERS, rankProviders } from "./memory/providers";
 export type { ProviderId, ProviderInfo, ProviderConfig, MemoryProvider } from "./memory/providers";
-export { extractMemories, parseExtraction } from "./memory/extractor";
-export type { KnowledgeFact, ExtractionResult, ExtractOptions } from "./memory/extractor";
+export { extractMemories, parseExtraction, BUCKETS, toBucket } from "./memory/extractor";
+export type { KnowledgeFact, ExtractedFact, ExtractionResult, ExtractOptions, Bucket } from "./memory/extractor";
+export { classifyConversations, parseClassification, buildClassifyPrompt, CLASSIFY_SYSTEM_PROMPT } from "./memory/classify";
+export type { ConversationTag } from "./memory/classify";
 export {
   extractEmojiPortrait,
   chunkConversations,

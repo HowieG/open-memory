@@ -139,9 +139,33 @@ const ollama: MemoryProvider = {
   },
 };
 
-/** Deterministic, offline. Produces real-shaped output for BOTH extraction modes
- *  (memory facts and the emoji portrait) with no network/key — so the stub powers
- *  the e2e and unit tests. Branches on the system prompt's mode. */
+/** Deterministic keyword tagger — used by the offline stub for BOTH the memory
+ *  buckets and the classify pass, so e2e/unit runs are stable without a model. */
+export function heuristicTag(text: string): { category: string; sensitive: boolean } {
+  const t = text.toLowerCase();
+  const has = (...words: string[]): boolean => words.some((w) => t.includes(w));
+  const sensitive =
+    has("health", "medical", "therapy", "doctor", "anxiety", "depress", "diagnos", "symptom") ||
+    has("salary", "income", "debt", "tax", "loan", "invest", "401k", "hsa", "mortgage", "net worth") ||
+    has("job", "fired", "laid off", "resign", "boss", "interview", "promotion", "employer") ||
+    has("relationship", "dating", "divorce", "breakup", "marriage", "partner", "girlfriend", "boyfriend");
+  const category = has("money", "finance", "invest", "401k", "hsa", "tax", "salary", "budget", "savings")
+    ? "Money"
+    : has("relationship", "dating", "family", "friend", "partner", "marriage")
+      ? "People"
+      : has("travel", "trip", "city", "country", "move", "vanlife", "visa", "residency", "flight")
+        ? "Places"
+        : has("fashion", "style", "music", "food", "fragrance", "dance", "dress", "coffee", "wine")
+          ? "Taste"
+          : has("health", "fitness", "gym", "workout", "jiu-jitsu", "skin", "diet", "sleep", "body", "doctor")
+            ? "Body"
+            : "Work";
+  return { category, sensitive };
+}
+
+/** Deterministic, offline. Produces real-shaped output for ALL three modes
+ *  (memory facts, the emoji portrait, the classify pass) with no network/key — so
+ *  the stub powers the e2e and unit tests. Branches on the system prompt's mode. */
 const stub: MemoryProvider = {
   info: { id: "stub", label: "Local (no model)", kind: "local", defaultModel: "deterministic", configHint: "none" },
   async complete(system, user) {
@@ -161,9 +185,21 @@ const stub: MemoryProvider = {
       }
       return JSON.stringify(items);
     }
+    if (/classify/i.test(system)) {
+      // Classify pass: one tag per "id=<id> title=\"<title>\"" line.
+      const tags: { id: string; sensitive: boolean; category: string }[] = [];
+      const re = /id=(\S+) title="(.*?)"/g;
+      for (let m = re.exec(user); m; m = re.exec(user)) {
+        const [, id, title] = m;
+        const { category, sensitive } = heuristicTag(title ?? "");
+        tags.push({ id: id!, sensitive, category });
+      }
+      return JSON.stringify(tags);
+    }
     const title = /title: "(.*?)"/.exec(user)?.[1]?.trim();
     const subject = title || "this conversation";
-    return JSON.stringify({ add: [`Discussed: ${subject}`], invalidate: [], followups: [`Want to revisit ${subject}?`] });
+    const { category, sensitive } = heuristicTag(subject);
+    return JSON.stringify({ add: [{ text: `Discussed: ${subject}`, category, sensitive }], followups: [`Want to revisit ${subject}?`] });
   },
 };
 

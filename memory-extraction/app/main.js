@@ -10,6 +10,7 @@ const {
   rankProviders,
   PROVIDERS,
   extractMemories,
+  classifyConversations,
   extractEmojiPortrait,
 } = require("./core.cjs");
 
@@ -91,7 +92,7 @@ ipcMain.handle("ingest-path", async (_event, zipPath) => {
 
 // newest-first for the sidebar (store.list() is oldest-first; .reverse() is safe — fresh array)
 ipcMain.handle("list-conversations", () =>
-  store.list().reverse().map((e) => ({ id: e.id, title: e.title || "(untitled)", source: e.source })),
+  store.list().reverse().map((e) => ({ id: e.id, title: e.title || "(untitled)", source: e.source, sensitive: !!e.sensitive })),
 );
 
 ipcMain.handle("get-conversation", async (_event, id) => {
@@ -125,7 +126,7 @@ ipcMain.handle("extract-memories", async (event, { providerId, config, limit }) 
       signal: extractAbort,
       onProgress: (n) => event.sender.send("extract-progress", n),
     });
-    const facts = result.facts.map((f, i) => ({ id: `f${i}`, text: f.text, from: f.from }));
+    const facts = result.facts.map((f, i) => ({ id: `f${i}`, text: f.text, from: f.from, category: f.category, sensitive: !!f.sensitive }));
     const doc = {
       facts,
       followups: result.followups,
@@ -134,6 +135,13 @@ ipcMain.handle("extract-memories", async (event, { providerId, config, limit }) 
       processed: result.conversationsProcessed,
     };
     await saveFacts(doc);
+    // Tag conversations as sensitive/bucketed (Haiku for Claude) so the sidebar can
+    // blur+lock them. Best-effort — a failure here must not fail the extraction.
+    try {
+      await classifyConversations(store, provider, cfg, { signal: extractAbort });
+    } catch {
+      /* classify is non-essential; ignore */
+    }
     return doc;
   } catch (err) {
     return { error: err.message };
@@ -159,6 +167,18 @@ ipcMain.handle("forget-fact", async (_event, id) => {
   doc.facts = doc.facts.filter((f) => f.id !== id);
   await saveFacts(doc);
   return doc;
+});
+
+// --- settings: clear local data ---
+
+ipcMain.handle("clear-conversations", async () => {
+  await store.clear();
+  return { ok: true };
+});
+
+ipcMain.handle("clear-memories", async () => {
+  await saveFacts(emptyMemories());
+  return { ok: true };
 });
 
 // --- emoji portrait (first-delight) ---

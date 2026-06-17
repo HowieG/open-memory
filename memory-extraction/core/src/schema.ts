@@ -55,6 +55,10 @@ export const ConversationIndexEntrySchema = z.object({
   file: z.string(),
   /** subset of source_metadata surfaced as pills (e.g. is_starred) */
   pills: z.record(z.string(), z.unknown()).optional(),
+  /** flagged by the classify pass — health/financial/employment/relationship */
+  sensitive: z.boolean().optional(),
+  /** memory bucket assigned by the classify pass (Body/Work/Places/…) */
+  category: z.string().optional(),
 });
 export type ConversationIndexEntry = z.infer<typeof ConversationIndexEntrySchema>;
 

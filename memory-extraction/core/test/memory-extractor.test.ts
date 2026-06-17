@@ -28,10 +28,17 @@ describe("rankProviders (by uploaded conversation counts)", () => {
 });
 
 describe("parseExtraction", () => {
-  it("parses fenced JSON and ignores surrounding prose", () => {
+  it("parses legacy bare-string add[] (back-compat)", () => {
     const u = parseExtraction('Sure!\n```json\n{"add":["x"],"invalidate":[],"followups":["y?"]}\n```');
-    expect(u.add).toEqual(["x"]);
+    expect(u.add.map((f) => f.text)).toEqual(["x"]);
     expect(u.followups).toEqual(["y?"]);
+  });
+  it("parses bucketed add[{text,category,sensitive}] and coerces unknown buckets", () => {
+    const u = parseExtraction('{"add":[{"text":"trains jiu-jitsu","category":"Body","sensitive":false},{"text":"sees a therapist","category":"nope","sensitive":true}],"followups":[]}');
+    expect(u.add).toEqual([
+      { text: "trains jiu-jitsu", category: "Body", sensitive: false },
+      { text: "sees a therapist", category: undefined, sensitive: true },
+    ]);
   });
   it("returns empty on garbage", () => {
     expect(parseExtraction("no json here")).toEqual({ add: [], followups: [] });

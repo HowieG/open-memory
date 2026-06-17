@@ -19,12 +19,12 @@ function providedLogo(source: string): string | undefined {
   return hit?.[1];
 }
 
-function Logo({ source }: { source: string }) {
+function Logo({ source, size = 16 }: { source: string; size?: number }) {
   const provided = providedLogo(source);
-  if (provided) return <img className="om-logo-img" src={provided} alt={source} width={16} height={16} />;
+  if (provided) return <img className="om-logo-img" src={provided} alt={source} width={size} height={size} style={{ width: size, height: size }} />;
   if (source === "chatgpt") {
     return (
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="#000" aria-label="OpenAI">
+      <svg viewBox="0 0 24 24" width={size} height={size} fill="#000" aria-label="OpenAI">
         <path d="M22.282 9.821a5.985 5.985 0 0 0-.516-4.91 6.046 6.046 0 0 0-6.51-2.9A6.065 6.065 0 0 0 4.981 4.18a5.985 5.985 0 0 0-3.998 2.9 6.046 6.046 0 0 0 .743 7.097 5.98 5.98 0 0 0 .51 4.911 6.051 6.051 0 0 0 6.515 2.9A5.985 5.985 0 0 0 13.26 24a6.056 6.056 0 0 0 5.772-4.206 5.99 5.99 0 0 0 3.998-2.9 6.056 6.056 0 0 0-.748-7.073zM13.26 22.43a4.476 4.476 0 0 1-2.876-1.04l.142-.08 4.778-2.758a.795.795 0 0 0 .393-.681v-6.737l2.02 1.168a.071.071 0 0 1 .038.052v5.583a4.504 4.504 0 0 1-4.495 4.494zM3.6 18.304a4.47 4.47 0 0 1-.535-3.014l.142.085 4.783 2.759a.771.771 0 0 0 .78 0l5.843-3.369v2.332a.08.08 0 0 1-.033.062L9.74 19.95a4.5 4.5 0 0 1-6.14-1.646zM2.34 7.896a4.485 4.485 0 0 1 2.366-1.973V11.6a.766.766 0 0 0 .388.676l5.815 3.355-2.02 1.168a.076.076 0 0 1-.071 0l-4.83-2.786A4.504 4.504 0 0 1 2.34 7.872zm16.597 3.855-5.833-3.387L15.119 7.2a.076.076 0 0 1 .071 0l4.83 2.791a4.494 4.494 0 0 1-.676 8.105v-5.678a.79.79 0 0 0-.407-.667zm2.01-3.023-.142-.085-4.774-2.782a.776.776 0 0 0-.785 0L9.409 9.23V6.897a.066.066 0 0 1 .028-.062l4.83-2.787a4.5 4.5 0 0 1 6.68 4.66zM8.307 12.863l-2.02-1.164a.08.08 0 0 1-.038-.057V6.075a4.5 4.5 0 0 1 7.376-3.454l-.142.08L8.704 5.46a.795.795 0 0 0-.393.681zm1.097-2.365 2.602-1.5 2.607 1.5v3l-2.597 1.5-2.607-1.5z" />
       </svg>
     );
@@ -35,7 +35,7 @@ function Logo({ source }: { source: string }) {
       [8, 12, 3, 12], [9.17, 9.17, 5.64, 5.64], [12, 8, 12, 3], [14.83, 9.17, 18.36, 5.64],
     ];
     return (
-      <svg viewBox="0 0 24 24" width="16" height="16" aria-label="Claude">
+      <svg viewBox="0 0 24 24" width={size} height={size} aria-label="Claude">
         <g stroke="#D97757" strokeWidth="2.2" strokeLinecap="round">
           {rays.map(([x1, y1, x2, y2], i) => <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} />)}
         </g>
@@ -45,7 +45,7 @@ function Logo({ source }: { source: string }) {
   return <span className="om-dot">•</span>;
 }
 
-type View = "memories" | "conversations" | "import" | "portrait";
+type View = "memories" | "conversations" | "import" | "portrait" | "settings";
 
 export function App() {
   const api = window.api;
@@ -62,7 +62,15 @@ export function App() {
   const [importResult, setImportResult] = useState<UploadResult | null>(null);
   const [status, setStatus] = useState("");
   const [hot, setHot] = useState(false);
+  const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const didInit = useRef(false);
+
+  const toggleReveal = (id: string) =>
+    setRevealed((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
 
   async function refresh() {
     const [convs, mem, elig, provs] = await Promise.all([
@@ -133,7 +141,26 @@ export function App() {
     setRateLimited(null);
     setExtracting(false);
     if (doc.error) setExtractError(doc.error);
-    else setMemories(doc);
+    else {
+      setMemories(doc);
+      // the post-extract classify pass may have tagged conversations as sensitive
+      setConversations(await api.listConversations());
+    }
+  }
+
+  // ---- settings ----
+  async function clearConversations() {
+    if (!window.confirm("Clear all imported conversations? This can't be undone.")) return;
+    await api.clearConversations();
+    setSelected(null);
+    setImportResult(null);
+    setRevealed(new Set());
+    await refresh();
+  }
+  async function clearMemories() {
+    if (!window.confirm("Forget all extracted memories? This can't be undone.")) return;
+    await api.clearMemories();
+    setMemories(await api.getMemories());
   }
 
   const navBtn = (v: View, label: string) => (
@@ -155,21 +182,37 @@ export function App() {
             {navBtn("memories", "Memories")}
             {navBtn("conversations", "Conversations")}
             {navBtn("import", "Import")}
+            {navBtn("settings", "Settings")}
           </nav>
           <div className="side-head">Conversations</div>
           <div className="conv-list">
-            {conversations.map((c) => (
-              <button
-                key={c.id}
-                className={"om-conv-item" + (selected?.id === c.id ? " active" : "")}
-                data-testid="conv-item"
-                data-source={c.source}
-                onClick={() => selectConv(c.id)}
-              >
-                <span className="om-logo" title={c.source}><Logo source={c.source} /></span>
-                <span className="om-title">{c.title}</span>
-              </button>
-            ))}
+            {conversations.map((c) => {
+              const locked = !!c.sensitive && !revealed.has(c.id);
+              return (
+                <button
+                  key={c.id}
+                  className={"om-conv-item" + (selected?.id === c.id ? " active" : "")}
+                  data-testid="conv-item"
+                  data-source={c.source}
+                  onClick={() => selectConv(c.id)}
+                >
+                  <span className="om-logo" title={c.source}><Logo source={c.source} /></span>
+                  <span className={"om-title" + (locked ? " locked" : "")}>{c.title}</span>
+                  {c.sensitive && (
+                    <span
+                      className="om-lock"
+                      role="button"
+                      tabIndex={0}
+                      title={locked ? "Sensitive — click to reveal" : "Hide"}
+                      onClick={(e) => { e.stopPropagation(); toggleReveal(c.id); }}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); toggleReveal(c.id); } }}
+                    >
+                      {locked ? "🔒" : "🔓"}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </aside>
 
@@ -195,6 +238,27 @@ export function App() {
 
           {view === "portrait" && (
             <PortraitView onOpenConversation={selectConv} onSkip={() => setView("memories")} />
+          )}
+
+          {view === "settings" && (
+            <div className="settings" data-testid="settings">
+              <h2>Settings</h2>
+              <div className="note">Everything stays on your machine. These actions wipe local data and can't be undone.</div>
+              <div className="setting-row">
+                <div className="setting-copy">
+                  <div className="setting-title">Conversations</div>
+                  <div className="setting-sub">{conversations.length} imported · removes every conversation and its index.</div>
+                </div>
+                <button className="secondary danger-btn" data-testid="clear-conversations" onClick={clearConversations}>Clear conversations</button>
+              </div>
+              <div className="setting-row">
+                <div className="setting-copy">
+                  <div className="setting-title">Memories</div>
+                  <div className="setting-sub">{memories?.facts.length ?? 0} extracted · forgets every memory.</div>
+                </div>
+                <button className="secondary danger-btn" data-testid="clear-memories" onClick={clearMemories}>Clear memories</button>
+              </div>
+            </div>
           )}
 
           {view === "conversations" &&
@@ -228,7 +292,11 @@ export function App() {
                   onDragLeave={() => setHot(false)}
                   onDrop={doDrop}
                 >
-                  <div>Drop a <strong>ChatGPT</strong> or <strong>Claude</strong> export <code>.zip</code> here</div>
+                  <div className="drop-logos">
+                    <span className="drop-logo"><Logo source="chatgpt" size={44} /></span>
+                    <span className="drop-logo"><Logo source="claude" size={44} /></span>
+                  </div>
+                  <div className="drop-head">Drop your export zip here</div>
                   <div className="or">or</div>
                   <button data-testid="pick" onClick={doPick}>Choose file</button>
                   <div className={"status" + (status.startsWith("Error") ? " err" : "")}>{status}</div>

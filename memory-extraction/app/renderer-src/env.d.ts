@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 export type Msg = { role: string; content: string };
-export type ConvMeta = { id: string; title: string; source: string };
+export type ConvMeta = { id: string; title: string; source: string; sensitive?: boolean };
 export type UploadResult = { source: string; count: number; failed: number; uploaded: ConvMeta[] };
 export type ConvData = { id: string; title?: string; source: string; messages: Msg[] };
 
@@ -13,7 +13,7 @@ export type ProviderInfo = {
   defaultModel: string;
   configHint: string;
 };
-export type Fact = { id: string; text: string; from: string[] };
+export type Fact = { id: string; text: string; from: string[]; category?: string; sensitive?: boolean };
 export type MemoriesDoc = {
   facts: Fact[];
   followups: string[];
@@ -47,6 +47,8 @@ declare global {
       onExtractRateLimit(cb: (info: RateLimitInfo) => void): () => void;
       editFact(id: string, text: string): Promise<MemoriesDoc>;
       forgetFact(id: string): Promise<MemoriesDoc>;
+      clearConversations(): Promise<{ ok: true }>;
+      clearMemories(): Promise<{ ok: true }>;
       startEmojiPortrait(
         providerId: string,
         config?: { apiKey?: string; endpoint?: string },

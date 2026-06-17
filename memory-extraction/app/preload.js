@@ -29,6 +29,10 @@ contextBridge.exposeInMainWorld("api", {
   editFact: (id, text) => ipcRenderer.invoke("edit-fact", { id, text }),
   forgetFact: (id) => ipcRenderer.invoke("forget-fact", id),
 
+  // settings: clear local data
+  clearConversations: () => ipcRenderer.invoke("clear-conversations"),
+  clearMemories: () => ipcRenderer.invoke("clear-memories"),
+
   // emoji portrait (first-delight) — streaming
   startEmojiPortrait: (providerId, config, max) =>
     ipcRenderer.invoke("start-emoji-portrait", { providerId, config, max }),
