@@ -24,45 +24,77 @@ function radialPos(i: number): { x: number; y: number } {
 
 type Phase = "consent" | "drawing" | "done" | "error";
 
+// Haiku for cost (the brief's "light model"); the prompt does the heavy lifting.
+const PORTRAIT_MODEL = "claude-haiku-4-5-20251001";
+
 export function PortraitView({
-  providerId = "stub",
-  config = {},
   onOpenConversation,
   onSkip,
 }: {
-  providerId?: string;
-  config?: { apiKey?: string; endpoint?: string };
   onOpenConversation: (convId: string) => void;
   onSkip: () => void;
 }) {
   const api = window.api;
   const [phase, setPhase] = useState<Phase>("consent");
+  // BYO Anthropic key — without it we fall back to an offline preview (low quality).
+  // localStorage is a stopgap; safeStorage in main is the proper home (deferred).
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem("om-anthropic-key") ?? "");
   const [signals, setSignals] = useState<EmojiSignal[]>([]);
   const [active, setActive] = useState<EmojiSignal | null>(null);
   const [convCount, setConvCount] = useState(0);
+  const [progress, setProgress] = useState<{ processed: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
   const runningRef = useRef(false);
+  const canvasRef = useRef<HTMLDivElement>(null);
+
+  async function share() {
+    const el = canvasRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const text = `a portrait of me, in ${signals.length} emoji — drawn from my own chats by OpenMemory`;
+    const res = await api.sharePortrait(
+      { x: r.left, y: r.top, width: r.width, height: r.height },
+      text,
+    );
+    setToast("error" in res ? `Couldn’t share: ${res.error}` : "Image copied — paste it into your post");
+    setTimeout(() => setToast(null), 4000);
+  }
 
   // The signal listener lives for the component's lifetime — NOT per-draw. If we
   // unsubscribed right after startEmojiPortrait resolves, the invoke reply can be
   // processed before the queued emoji-signal events, dropping them. A persistent
   // listener can't lose them.
   useEffect(() => {
-    const unsub = api.onEmojiSignal((sig) => setSignals((prev) => [...prev, sig]));
+    // Provisional signals fill the canvas live (dedup by emoji); the final ranked
+    // set replaces them once every conversation has voted.
+    const unsubSig = api.onEmojiSignal((sig) =>
+      setSignals((prev) => (prev.some((s) => s.emoji === sig.emoji) ? prev : [...prev, sig])),
+    );
+    const unsubFinal = api.onEmojiFinal((sigs) => setSignals(sigs));
+    const unsubProg = api.onEmojiProgress((p) => setProgress(p));
     return () => {
-      unsub();
+      unsubSig();
+      unsubFinal();
+      unsubProg();
       void api.cancelEmojiPortrait();
     };
   }, []);
 
-  async function draw() {
+  async function draw(force = false) {
     if (runningRef.current) return;
     runningRef.current = true;
+    const key = apiKey.trim();
+    if (key) localStorage.setItem("om-anthropic-key", key);
+    // Real portrait via Claude (Haiku) when a key is present; offline stub preview otherwise.
+    const providerId = key ? "claude" : "stub";
+    const config = key ? { apiKey: key, model: PORTRAIT_MODEL } : {};
     setPhase("drawing");
     setSignals([]);
+    setProgress(null);
     setError(null);
     try {
-      const res = await api.startEmojiPortrait(providerId, config, 20);
+      const res = await api.startEmojiPortrait(providerId, config, 20, force);
       runningRef.current = false;
       if ("error" in res) {
         setError(res.error);
@@ -90,9 +122,24 @@ export function PortraitView({
           To do this your chat messages are sent to Claude. Everything else in OpenMemory stays on
           your machine. You bring your own key, so you pay for and control the request.
         </p>
+        <input
+          className="key-input"
+          data-testid="portrait-key"
+          type="password"
+          autoComplete="off"
+          spellCheck={false}
+          placeholder="sk-ant-… (your Anthropic API key)"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+        />
+        <p className="fineprint">
+          {apiKey.trim()
+            ? "We'll read your conversations with Claude Haiku and draw the real thing."
+            : "No key? We'll show a quick local preview instead — lower quality, just titles."}
+        </p>
         <div className="consent-actions">
-          <button data-testid="portrait-yes" onClick={draw}>
-            Yes — draw my portrait
+          <button data-testid="portrait-yes" onClick={() => draw()}>
+            {apiKey.trim() ? "Yes — draw my portrait" : "Show me a preview"}
           </button>
           <button className="secondary" data-testid="portrait-no" onClick={onSkip}>
             No thanks
@@ -105,7 +152,9 @@ export function PortraitView({
   const count = signals.length;
   const countLine =
     phase === "drawing"
-      ? `reading your conversations… ${count} so far`
+      ? progress
+        ? `reading your conversations… ${progress.processed}/${progress.total}`
+        : "reading your conversations…"
       : phase === "error"
         ? `we drew what we could — ${count} ${count === 1 ? "piece" : "pieces"}`
         : `a portrait of you, in ${count} ${count === 1 ? "piece" : "pieces"}` +
@@ -117,8 +166,13 @@ export function PortraitView({
         {countLine}
         {phase === "drawing" && <span className="dots" aria-hidden="true" />}
       </div>
+      {phase === "drawing" && progress && progress.total > 0 && (
+        <div className="portrait-progress" aria-hidden="true">
+          <div className="bar" style={{ width: `${Math.round((progress.processed / progress.total) * 100)}%` }} />
+        </div>
+      )}
 
-      <div className="portrait-canvas" role="group" aria-label="Your emoji portrait">
+      <div className="portrait-canvas" ref={canvasRef} role="group" aria-label="Your emoji portrait">
         <div className="portrait-center" aria-hidden="true">
           <span className="wordmark">
             Open<b>me</b>mory
@@ -129,7 +183,7 @@ export function PortraitView({
           const { x, y } = radialPos(i);
           return (
             <button
-              key={`${sig.emoji}-${i}`}
+              key={`${sig.emoji}-${sig.keyword}`}
               className="emoji-tile"
               data-testid="emoji-tile"
               style={{ transform: `translate(-50%, -50%) translate(${x}px, ${y}px)` }}
@@ -167,9 +221,22 @@ export function PortraitView({
 
       {phase !== "drawing" && (
         <div className="portrait-actions">
-          <button data-testid="portrait-continue" onClick={onSkip}>
+          {signals.length > 0 && (
+            <button data-testid="portrait-share" onClick={share}>
+              Share ↗
+            </button>
+          )}
+          <button className="secondary" data-testid="portrait-redraw" onClick={() => draw(true)}>
+            Redraw
+          </button>
+          <button className="secondary" data-testid="portrait-continue" onClick={onSkip}>
             See your memories →
           </button>
+        </div>
+      )}
+      {toast && (
+        <div className="portrait-toast" data-testid="portrait-toast" role="status">
+          {toast}
         </div>
       )}
       {error && phase === "error" && (

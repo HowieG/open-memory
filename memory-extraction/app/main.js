@@ -1,5 +1,6 @@
-const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, clipboard, shell } = require("electron");
 const path = require("node:path");
+const crypto = require("node:crypto");
 const { readFile, writeFile } = require("node:fs/promises");
 const {
   ingestZip,
@@ -26,7 +27,22 @@ const {
 // OM_STORE_DIR override lets the e2e use an isolated, deterministic store.
 let store; // ConversationStore, created on app ready
 let memoriesPath; // <storeDir>/memories.json — extracted facts
+let portraitPath; // <storeDir>/emoji-portrait.json — cached emoji signals
 let extractAbort = null; // AbortController-like for cancel
+
+// Hash of the current conversation set — the emoji-portrait cache key. Changes
+// when conversations are added/removed, so a new import re-draws automatically.
+function convSetHash() {
+  const ids = store.list().map((e) => e.id).sort();
+  return crypto.createHash("sha1").update(ids.join(",")).digest("hex");
+}
+async function loadPortrait() {
+  try {
+    return JSON.parse(await readFile(portraitPath, "utf8"));
+  } catch {
+    return null;
+  }
+}
 
 const emptyMemories = () => ({ facts: [], followups: [], extractedAt: null, provider: null });
 
@@ -215,25 +231,44 @@ ipcMain.handle("clear-memories", async () => {
 // `stub` provider needs no key — drives offline/e2e. Returns a summary when done.
 let emojiAbort = null;
 
-ipcMain.handle("start-emoji-portrait", async (event, { providerId, config, max } = {}) => {
+ipcMain.handle("start-emoji-portrait", async (event, { providerId, config, max, force } = {}) => {
   const provider = PROVIDERS[providerId];
   if (!provider) return { error: `unknown provider "${providerId}"` };
+  const hash = convSetHash();
+
+  // Cache hit: replay the stored signals (no re-run, no re-pay) unless redrawing.
+  if (!force) {
+    const cached = await loadPortrait();
+    if (cached && cached.hash === hash && Array.isArray(cached.signals) && cached.signals.length) {
+      event.sender.send("emoji-final", cached.signals); // instant render from cache
+      return { count: cached.signals.length, conversations: cached.conversations ?? 0, cached: true };
+    }
+  }
+
   emojiAbort = { aborted: false };
   try {
     const conversations = [];
     for await (const c of memoryExtractionSource(store)) conversations.push(c);
-    let count = 0;
-    for await (const sig of extractEmojiPortrait(conversations, {
+    // Per-conversation parallel extraction → frequency-ranked signals. Progress
+    // streams during the (minutes-long) run; the ranked set arrives at the end.
+    const signals = await extractEmojiPortrait(conversations, {
       provider,
       config,
       max: typeof max === "number" ? max : undefined,
       signal: emojiAbort,
-    })) {
-      if (emojiAbort?.aborted) break;
-      event.sender.send("emoji-signal", sig);
-      count++;
+      onProgress: (processed, total) => event.sender.send("emoji-progress", { processed, total }),
+      onCandidate: (sig) => event.sender.send("emoji-signal", sig), // live fill while processing
+    });
+    if (!emojiAbort.aborted) event.sender.send("emoji-final", signals); // settle to the ranked set
+    // Cache only a complete, non-cancelled run keyed on this conversation set.
+    if (!emojiAbort.aborted && signals.length) {
+      await writeFile(
+        portraitPath,
+        JSON.stringify({ hash, signals, conversations: conversations.length, provider: providerId, drawnAt: new Date().toISOString() }, null, 2),
+        "utf8",
+      );
     }
-    return { count, conversations: conversations.length };
+    return { count: signals.length, conversations: conversations.length, cached: false };
   } catch (err) {
     return { error: err.message };
   } finally {
@@ -245,9 +280,35 @@ ipcMain.handle("cancel-emoji-portrait", () => {
   if (emojiAbort) emojiAbort.aborted = true;
 });
 
+// Capture the portrait card region as a real screenshot (native emoji render
+// exactly as the user sees them), copy it to the clipboard, and open the X
+// composer with pre-filled text. Intent URLs can't attach an image, so the flow
+// is "image copied -> paste into your post". OM_NO_EXTERNAL skips the browser
+// open (e2e). Returns { ok } or { error }.
+ipcMain.handle("share-portrait", async (event, { rect, text } = {}) => {
+  try {
+    const dip = rect && {
+      x: Math.round(rect.x),
+      y: Math.round(rect.y),
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+    };
+    const image = await event.sender.capturePage(dip);
+    if (image.isEmpty()) return { error: "capture was empty" };
+    clipboard.writeImage(image);
+    if (text && !process.env.OM_NO_EXTERNAL) {
+      await shell.openExternal(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`);
+    }
+    return { ok: true };
+  } catch (err) {
+    return { error: err.message };
+  }
+});
+
 app.whenReady().then(async () => {
   const baseDir = process.env.OM_STORE_DIR || path.join(app.getPath("userData"), "store");
   memoriesPath = path.join(baseDir, "memories.json");
+  portraitPath = path.join(baseDir, "emoji-portrait.json");
   store = new ConversationStore(baseDir);
   await store.init();
 

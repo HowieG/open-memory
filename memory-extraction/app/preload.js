@@ -34,12 +34,23 @@ contextBridge.exposeInMainWorld("api", {
   clearMemories: () => ipcRenderer.invoke("clear-memories"),
 
   // emoji portrait (first-delight) — streaming
-  startEmojiPortrait: (providerId, config, max) =>
-    ipcRenderer.invoke("start-emoji-portrait", { providerId, config, max }),
+  startEmojiPortrait: (providerId, config, max, force) =>
+    ipcRenderer.invoke("start-emoji-portrait", { providerId, config, max, force }),
   cancelEmojiPortrait: () => ipcRenderer.invoke("cancel-emoji-portrait"),
   onEmojiSignal: (cb) => {
     const handler = (_event, sig) => cb(sig);
     ipcRenderer.on("emoji-signal", handler);
     return () => ipcRenderer.removeListener("emoji-signal", handler);
   },
+  onEmojiProgress: (cb) => {
+    const handler = (_event, p) => cb(p);
+    ipcRenderer.on("emoji-progress", handler);
+    return () => ipcRenderer.removeListener("emoji-progress", handler);
+  },
+  onEmojiFinal: (cb) => {
+    const handler = (_event, sigs) => cb(sigs);
+    ipcRenderer.on("emoji-final", handler);
+    return () => ipcRenderer.removeListener("emoji-final", handler);
+  },
+  sharePortrait: (rect, text) => ipcRenderer.invoke("share-portrait", { rect, text }),
 });

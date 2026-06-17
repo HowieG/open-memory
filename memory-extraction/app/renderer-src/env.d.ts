@@ -25,8 +25,9 @@ export type MemoriesDoc = {
 export type Eligibility = { eligible: number; excluded: number; total: number };
 export type RateLimitInfo = { attempt: number; waitMs: number };
 
-export type EmojiSignal = { keyword: string; emoji: string; sourceConvId: string; excerpt: string };
-export type EmojiPortraitResult = { count: number; conversations: number } | { error: string };
+export type EmojiSignal = { keyword: string; emoji: string; sourceConvId: string; excerpt: string; count?: number };
+export type EmojiProgress = { processed: number; total: number };
+export type EmojiPortraitResult = { count: number; conversations: number; cached?: boolean } | { error: string };
 
 type Ingest = UploadResult | { canceled: true } | { error: string };
 
@@ -53,9 +54,16 @@ declare global {
         providerId: string,
         config?: { apiKey?: string; endpoint?: string },
         max?: number,
+        force?: boolean,
       ): Promise<EmojiPortraitResult>;
       cancelEmojiPortrait(): Promise<void>;
       onEmojiSignal(cb: (sig: EmojiSignal) => void): () => void;
+      onEmojiProgress(cb: (p: EmojiProgress) => void): () => void;
+      onEmojiFinal(cb: (sigs: EmojiSignal[]) => void): () => void;
+      sharePortrait(
+        rect: { x: number; y: number; width: number; height: number },
+        text?: string,
+      ): Promise<{ ok: true } | { error: string }>;
     };
   }
 }

@@ -32,7 +32,7 @@ export interface ProviderConfig {
   apiKey?: string;
   model?: string;
   endpoint?: string;
-  /** cap on output tokens (the consolidation pass needs a larger budget) */
+  /** cap on output tokens (emoji portrait needs >default for ~20 items; consolidation too) */
   maxTokens?: number;
   /** called before each rate-limit backoff so the UI can communicate the pause */
   onRateLimit?: (info: RateLimitInfo) => void;
@@ -172,20 +172,14 @@ const stub: MemoryProvider = {
   info: { id: "stub", label: "Local (no model)", kind: "local", defaultModel: "deterministic", configHint: "none" },
   async complete(system, user) {
     if (/emoji/i.test(system)) {
-      // Emoji portrait: one signal per conversation block, emoji derived from title.
-      const items: { keyword: string; emoji: string; convId: string; excerpt: string }[] = [];
-      const re = /convId: (\S+)\ntitle: "(.*?)"\nuser said:\n([\s\S]*?)(?=\n\n---\n\n|$)/g;
-      for (let m = re.exec(user); m; m = re.exec(user)) {
-        const [, convId, title, said] = m;
-        const keyword = (title || "this topic").trim().toLowerCase();
-        items.push({
-          keyword,
-          emoji: mapKeywordToEmoji(keyword),
-          convId: convId!,
-          excerpt: (said ?? "").trim().split("\n")[0]!.slice(0, 160),
-        });
-      }
-      return JSON.stringify(items);
+      // Emoji portrait (per-conversation): derive one signal from this conversation's
+      // title + first user line, so the offline path produces a real-shaped result.
+      const title = (/Conversation title: "(.*?)"/.exec(user)?.[1] || "this topic").trim();
+      const said = user.split("The user said:\n")[1] ?? "";
+      const keyword = title.toLowerCase();
+      return JSON.stringify([
+        { keyword, emoji: mapKeywordToEmoji(keyword), excerpt: said.trim().split("\n")[0]?.slice(0, 160) ?? "" },
+      ]);
     }
     if (/classify/i.test(system)) {
       // Classify pass: one tag per "id=<id> title=\"<title>\"" line.

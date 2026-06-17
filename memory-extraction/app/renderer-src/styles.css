@@ -167,6 +167,8 @@ button.link.danger:hover { color: #b00020; }
 .portrait-consent .tease { font-size: 17px; max-width: 46ch; margin: 0; }
 .portrait-consent .tease em { font-style: italic; }
 .portrait-consent .fineprint { font: 12px/1.5 var(--font-mono); color: var(--muted); max-width: 52ch; margin: 0; }
+.key-input { font: 13px var(--font-mono); padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; width: min(420px, 80%); }
+.key-input:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
 .consent-actions { display: flex; gap: 10px; margin-top: 8px; }
 
 .portrait { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; overflow: hidden; padding: 16px 24px 0; }
@@ -174,6 +176,8 @@ button.link.danger:hover { color: #b00020; }
 .portrait-count .dots::after { content: "…"; animation: om-dots 1.2s steps(4, end) infinite; }
 @keyframes om-dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
 
+.portrait-progress { width: min(420px, 70%); height: 6px; background: #fff; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; margin: 6px 0 2px; }
+.portrait-progress .bar { height: 100%; background: var(--ink); transition: width .3s; }
 .portrait-canvas { position: relative; flex: 1; width: 100%; min-height: 0; }
 .portrait-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; }
 .wordmark { font-family: var(--font-display); font-size: 30px; color: var(--muted); letter-spacing: -0.01em; }
@@ -200,5 +204,6 @@ button.link.danger:hover { color: #b00020; }
 .excerpt-open { background: transparent; color: var(--muted); border: 0; padding: 4px 0 0; font: 11px var(--font-mono); cursor: pointer; }
 .excerpt-open:hover { color: var(--ink); text-decoration: underline; }
 
-.portrait-actions { padding: 12px 0 16px; }
+.portrait-actions { display: flex; gap: 10px; padding: 12px 0 16px; }
+.portrait-toast { position: absolute; left: 50%; bottom: 76px; transform: translateX(-50%); background: var(--ink); color: var(--paper); font: 13px var(--font-sans); padding: 9px 16px; border-radius: 999px; box-shadow: 0 6px 24px rgba(0,0,0,.14); animation: om-pop .2s ease both; }
 .portrait-error { color: #b00020; font: 12px var(--font-mono); padding-bottom: 12px; }
