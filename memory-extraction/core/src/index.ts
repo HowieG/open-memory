@@ -12,7 +12,7 @@ export type { GmailClient, GmailMessageRef, GmailHistoryPage } from "./gmail/typ
 export { GmailHistoryGoneError, GmailAuthRevokedError } from "./gmail/types";
 export { ConversationStore } from "./store";
 export { memoryExtractionSource, memoryEligibility, isEligibleForMemory } from "./memory-source";
-export { PROVIDERS, rankProviders } from "./memory/providers";
+export { PROVIDERS, rankProviders, heuristicTag } from "./memory/providers";
 export type { ProviderId, ProviderInfo, ProviderConfig, MemoryProvider } from "./memory/providers";
 export { extractMemories, parseExtraction, BUCKETS, toBucket } from "./memory/extractor";
 export type { KnowledgeFact, ExtractedFact, ExtractionResult, ExtractOptions, Bucket } from "./memory/extractor";

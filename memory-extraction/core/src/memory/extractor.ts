@@ -17,10 +17,24 @@ import type { MemoryProvider, ProviderConfig } from "./providers";
 export const BUCKETS = ["Body", "Work", "Places", "Taste", "People", "Money"] as const;
 export type Bucket = (typeof BUCKETS)[number];
 
-/** Coerce an arbitrary string to a known bucket (case-insensitive), else undefined. */
+/** Common labels a model reaches for, mapped onto our six buckets. */
+const BUCKET_ALIASES: Record<string, Bucket> = {
+  tech: "Work", technology: "Work", coding: "Work", code: "Work", dev: "Work", development: "Work",
+  engineering: "Work", software: "Work", programming: "Work", career: "Work", business: "Work",
+  project: "Work", projects: "Work", productivity: "Work", ai: "Work", "ai/ml": "Work", startup: "Work",
+  travel: "Places", location: "Places", home: "Places", geography: "Places", place: "Places",
+  health: "Body", fitness: "Body", wellness: "Body", medical: "Body", body: "Body",
+  food: "Taste", style: "Taste", fashion: "Taste", music: "Taste", art: "Taste", hobby: "Taste",
+  hobbies: "Taste", entertainment: "Taste", preferences: "Taste", lifestyle: "Taste",
+  family: "People", relationship: "People", relationships: "People", social: "People", friends: "People",
+  finance: "Money", financial: "Money", investing: "Money", investment: "Money", budget: "Money",
+};
+
+/** Coerce an arbitrary string to a known bucket (case-insensitive, with aliases). */
 export function toBucket(v: unknown): Bucket | undefined {
   if (typeof v !== "string") return undefined;
-  return BUCKETS.find((b) => b.toLowerCase() === v.trim().toLowerCase());
+  const k = v.trim().toLowerCase();
+  return BUCKETS.find((b) => b.toLowerCase() === k) ?? BUCKET_ALIASES[k];
 }
 
 export interface KnowledgeFact {

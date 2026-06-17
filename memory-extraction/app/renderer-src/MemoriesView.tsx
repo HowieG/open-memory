@@ -14,6 +14,11 @@ const BUCKET_COLORS: Record<Bucket, string> = {
 };
 const asBucket = (v?: string): Bucket | null => (v && (BUCKETS as readonly string[]).includes(v) ? (v as Bucket) : null);
 
+/** How many open threads to reveal per page. */
+const THREADS_PAGE = 6;
+const dayKey = (ms: number): string => { const d = new Date(ms); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
+const formatDay = (ms: number): string => new Date(ms).toLocaleDateString(undefined, { weekday: "short", month: "long", day: "numeric", year: "numeric" });
+
 /**
  * The "Your memories" hero. Three states, per the design review:
  *   idle      → cost/eligibility estimate + provider picker + key + Extract
@@ -40,13 +45,11 @@ interface Props {
 
 function FactCard({
   fact,
-  confirmedAt,
   onEdit,
   onForget,
   onProvenance,
 }: {
   fact: Fact;
-  confirmedAt: string;
   onEdit: (id: string, text: string) => void;
   onForget: (id: string) => void;
   onProvenance: (convId: string) => void;
@@ -87,7 +90,7 @@ function FactCard({
       )}
       <div className="fact-foot">
         <button className="prov" title="Where this came from" onClick={() => fact.from[0] && onProvenance(fact.from[0])}>
-          {fact.from.length} conversation{fact.from.length === 1 ? "" : "s"} · {confirmedAt}
+          {fact.from.length} conversation{fact.from.length === 1 ? "" : "s"}
         </button>
         <span className="fact-actions">
           {editing ? (
@@ -116,7 +119,7 @@ export function MemoriesView(props: Props) {
   const [endpoint, setEndpoint] = useState("http://localhost:11434");
   const [tier, setTier] = useState<"free" | "premium">("free");
   const [filter, setFilter] = useState<"All" | Bucket>("All");
-  const [threadsOpen, setThreadsOpen] = useState(false);
+  const [threadsShown, setThreadsShown] = useState(THREADS_PAGE);
   const limit = tier === "free" ? FREE_LIMIT : undefined;
 
   const selected = providers.find((p) => p.id === providerId) ?? providers[0];
@@ -153,10 +156,24 @@ export function MemoriesView(props: Props) {
 
   if (hasFacts) {
     const facts = memories!.facts;
-    const confirmedAt = memories!.extractedAt
-      ? new Date(memories!.extractedAt).toLocaleDateString(undefined, { month: "short", year: "numeric" })
-      : "";
+    const extractedMs = (memories!.extractedAt && Date.parse(memories!.extractedAt)) || Date.now();
     const shown = filter === "All" ? facts : facts.filter((f) => asBucket(f.category) === filter);
+
+    // Group the visible memories by the day of their newest source conversation.
+    const byDay = new Map<string, { ms: number; facts: Fact[] }>();
+    for (const f of shown) {
+      const ms = f.date ?? extractedMs;
+      const key = dayKey(ms);
+      const g = byDay.get(key) ?? { ms, facts: [] };
+      g.facts.push(f);
+      byDay.set(key, g);
+    }
+    const dayGroups = [...byDay.entries()].sort((a, b) => b[1].ms - a[1].ms);
+
+    const fus = memories!.followups;
+    const visibleThreads = fus.slice(0, threadsShown);
+    const threadsLeft = fus.length - visibleThreads.length;
+
     return (
       <div className="memories memories-wide">
         <h2>Your memories</h2>
@@ -166,32 +183,26 @@ export function MemoriesView(props: Props) {
           <button className="link" data-testid="reextract" onClick={props.onReset}>Re-extract</button>
         </div>
 
-        {memories!.followups.length > 0 && (
+        {fus.length > 0 && (
           <>
-            <div className="section-head">Open threads</div>
-            {(() => {
-              const many = memories!.followups.length > 3;
-              const collapsed = many && !threadsOpen;
-              return (
-                <div className={"threads-wrap" + (collapsed ? " collapsed" : "")}>
-                  <div className="threads">
-                    {memories!.followups.map((t, i) => (
-                      <div className="thread-card" key={i}>{t}</div>
-                    ))}
-                  </div>
-                  {collapsed && (
-                    <div className="threads-fade">
-                      <button className="threads-toggle" onClick={() => setThreadsOpen(true)}>
-                        View all {memories!.followups.length} ↓
-                      </button>
-                    </div>
-                  )}
-                  {many && threadsOpen && (
-                    <button className="threads-toggle inline" onClick={() => setThreadsOpen(false)}>View less ↑</button>
-                  )}
-                </div>
-              );
-            })()}
+            <div className="section-head">Open threads <span className="section-hint">{fus.length}</span></div>
+            <div className="threads">
+              {visibleThreads.map((t, i) => (
+                <div className="thread-card" key={i}>{t}</div>
+              ))}
+            </div>
+            {(threadsLeft > 0 || threadsShown > THREADS_PAGE) && (
+              <div className="threads-controls">
+                {threadsLeft > 0 && (
+                  <button className="threads-toggle" onClick={() => setThreadsShown((n) => n + THREADS_PAGE)}>
+                    View {Math.min(THREADS_PAGE, threadsLeft)} more · {threadsLeft} left ↓
+                  </button>
+                )}
+                {threadsShown > THREADS_PAGE && (
+                  <button className="threads-toggle" onClick={() => setThreadsShown(THREADS_PAGE)}>Collapse ↑</button>
+                )}
+              </div>
+            )}
           </>
         )}
 
@@ -218,16 +229,22 @@ export function MemoriesView(props: Props) {
           })}
         </div>
 
-        <div className="facts-grid" data-testid="facts">
-          {shown.map((f) => (
-            <FactCard
-              key={f.id}
-              fact={f}
-              confirmedAt={confirmedAt}
-              onEdit={props.onEdit}
-              onForget={props.onForget}
-              onProvenance={props.onProvenance}
-            />
+        <div data-testid="facts">
+          {dayGroups.map(([key, g]) => (
+            <div className="date-group" key={key}>
+              <div className="date-marker"><span>{formatDay(g.ms)}</span></div>
+              <div className="facts-grid">
+                {g.facts.map((f) => (
+                  <FactCard
+                    key={f.id}
+                    fact={f}
+                    onEdit={props.onEdit}
+                    onForget={props.onForget}
+                    onProvenance={props.onProvenance}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </div>

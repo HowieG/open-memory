@@ -12,6 +12,7 @@ const {
   extractMemories,
   consolidateFacts,
   classifyConversations,
+  heuristicTag,
   extractEmojiPortrait,
 } = require("./core.cjs");
 
@@ -142,16 +143,25 @@ ipcMain.handle("extract-memories", async (event, { providerId, config, limit }) 
     } catch {
       /* keep raw facts */
     }
-    // Fallback category: inherit the source conversation's classified bucket.
-    const convCat = {};
-    for (const e of store.list()) if (e.category) convCat[e.id] = e.category;
-    const facts = merged.map((f, i) => ({
-      id: `f${i}`,
-      text: f.text,
-      from: f.from,
-      category: f.category || convCat[f.from[0]] || undefined,
-      sensitive: !!f.sensitive,
-    }));
+    // Category + date come from a fallback chain so nothing reads "Other":
+    // model fact category -> source conversation's classified bucket -> keyword
+    // heuristic (which always yields a bucket). Date = newest source conversation.
+    const convMeta = {};
+    for (const e of store.list()) convMeta[e.id] = { category: e.category, created_at: e.created_at };
+    const facts = merged.map((f, i) => {
+      const from = f.from || [];
+      const heur = heuristicTag(f.text);
+      const srcCat = from.map((id) => convMeta[id]?.category).find(Boolean);
+      const dates = from.map((id) => convMeta[id]?.created_at).filter((n) => typeof n === "number");
+      return {
+        id: `f${i}`,
+        text: f.text,
+        from,
+        category: f.category || srcCat || heur.category,
+        sensitive: !!f.sensitive || heur.sensitive,
+        date: dates.length ? Math.max(...dates) * 1000 : undefined,
+      };
+    });
     const doc = {
       facts,
       followups: result.followups,

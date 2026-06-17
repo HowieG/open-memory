@@ -13,7 +13,7 @@ export type ProviderInfo = {
   defaultModel: string;
   configHint: string;
 };
-export type Fact = { id: string; text: string; from: string[]; category?: string; sensitive?: boolean };
+export type Fact = { id: string; text: string; from: string[]; category?: string; sensitive?: boolean; date?: number };
 export type MemoriesDoc = {
   facts: Fact[];
   followups: string[];

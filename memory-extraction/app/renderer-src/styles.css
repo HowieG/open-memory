@@ -97,14 +97,17 @@ button.link.danger:hover { color: #b00020; }
 .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 22px 0 10px; font: 11px var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .section-hint { text-transform: none; letter-spacing: 0; font-size: 11px; }
 
-.threads-wrap { position: relative; }
-.threads { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
-.threads-wrap.collapsed .threads { max-height: 56px; overflow: hidden; }
-.thread-card { border: 1px solid var(--line); border-radius: 12px; background: #fff; padding: 12px 14px; font-size: 14px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.threads-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 64px; display: flex; align-items: flex-end; justify-content: center; background: linear-gradient(to bottom, transparent, var(--paper) 78%); pointer-events: none; }
-.threads-toggle { pointer-events: auto; background: #fff; color: var(--ink); border: 1px solid var(--line); border-radius: 999px; padding: 5px 16px; font-size: 12px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.threads { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.thread-card { border: 1px solid var(--line); border-radius: 12px; background: #fff; padding: 12px 14px; font-size: 14px; color: var(--ink); }
+.threads-controls { display: flex; gap: 8px; justify-content: center; margin-top: 14px; }
+.threads-toggle { background: #fff; color: var(--ink); border: 1px solid var(--line); border-radius: 999px; padding: 6px 16px; font-size: 12px; cursor: pointer; }
 .threads-toggle:hover { background: #f5f3ec; }
-.threads-toggle.inline { margin: 10px auto 0; display: block; box-shadow: none; }
+
+/* date separators between memory groups */
+.date-group { margin-bottom: 4px; }
+.date-marker { display: flex; align-items: center; gap: 12px; margin: 22px 0 12px; font: 11px var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.date-marker span { flex: 0 0 auto; }
+.date-marker::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 
 .bucket-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 13px; color: var(--ink); cursor: pointer; }
@@ -112,7 +115,9 @@ button.link.danger:hover { color: #b00020; }
 .chip.empty { opacity: .4; cursor: default; }
 .chip-n { font: 11px var(--font-mono); opacity: .8; }
 
-.facts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.facts-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 1080px) { .facts-grid, .threads { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 720px) { .facts-grid, .threads { grid-template-columns: 1fr; } }
 .fact-card { display: flex; flex-direction: column; gap: 10px; border: 1px solid var(--line); border-radius: 14px; background: #fff; padding: 16px; }
 .fact-card:hover { box-shadow: 0 6px 22px rgba(0,0,0,.06); }
 .fact-cat { display: flex; align-items: center; gap: 7px; font: 11px var(--font-mono); text-transform: uppercase; letter-spacing: .06em; }
