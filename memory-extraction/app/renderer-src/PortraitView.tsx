@@ -41,7 +41,22 @@ export function PortraitView({
   const [active, setActive] = useState<EmojiSignal | null>(null);
   const [convCount, setConvCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
   const runningRef = useRef(false);
+  const canvasRef = useRef<HTMLDivElement>(null);
+
+  async function share() {
+    const el = canvasRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const text = `a portrait of me, in ${signals.length} emoji — drawn from my own chats by OpenMemory`;
+    const res = await api.sharePortrait(
+      { x: r.left, y: r.top, width: r.width, height: r.height },
+      text,
+    );
+    setToast("error" in res ? `Couldn’t share: ${res.error}` : "Image copied — paste it into your post");
+    setTimeout(() => setToast(null), 4000);
+  }
 
   // The signal listener lives for the component's lifetime — NOT per-draw. If we
   // unsubscribed right after startEmojiPortrait resolves, the invoke reply can be
@@ -55,14 +70,14 @@ export function PortraitView({
     };
   }, []);
 
-  async function draw() {
+  async function draw(force = false) {
     if (runningRef.current) return;
     runningRef.current = true;
     setPhase("drawing");
     setSignals([]);
     setError(null);
     try {
-      const res = await api.startEmojiPortrait(providerId, config, 20);
+      const res = await api.startEmojiPortrait(providerId, config, 20, force);
       runningRef.current = false;
       if ("error" in res) {
         setError(res.error);
@@ -91,7 +106,7 @@ export function PortraitView({
           your machine. You bring your own key, so you pay for and control the request.
         </p>
         <div className="consent-actions">
-          <button data-testid="portrait-yes" onClick={draw}>
+          <button data-testid="portrait-yes" onClick={() => draw()}>
             Yes — draw my portrait
           </button>
           <button className="secondary" data-testid="portrait-no" onClick={onSkip}>
@@ -118,7 +133,7 @@ export function PortraitView({
         {phase === "drawing" && <span className="dots" aria-hidden="true" />}
       </div>
 
-      <div className="portrait-canvas" role="group" aria-label="Your emoji portrait">
+      <div className="portrait-canvas" ref={canvasRef} role="group" aria-label="Your emoji portrait">
         <div className="portrait-center" aria-hidden="true">
           <span className="wordmark">
             Open<b>me</b>mory
@@ -167,9 +182,22 @@ export function PortraitView({
 
       {phase !== "drawing" && (
         <div className="portrait-actions">
-          <button data-testid="portrait-continue" onClick={onSkip}>
+          {signals.length > 0 && (
+            <button data-testid="portrait-share" onClick={share}>
+              Share ↗
+            </button>
+          )}
+          <button className="secondary" data-testid="portrait-redraw" onClick={() => draw(true)}>
+            Redraw
+          </button>
+          <button className="secondary" data-testid="portrait-continue" onClick={onSkip}>
             See your memories →
           </button>
+        </div>
+      )}
+      {toast && (
+        <div className="portrait-toast" data-testid="portrait-toast" role="status">
+          {toast}
         </div>
       )}
       {error && phase === "error" && (

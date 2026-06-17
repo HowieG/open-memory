@@ -142,5 +142,6 @@ button.link.danger:hover { color: #b00020; }
 .excerpt-open { background: transparent; color: var(--muted); border: 0; padding: 4px 0 0; font: 11px var(--font-mono); cursor: pointer; }
 .excerpt-open:hover { color: var(--ink); text-decoration: underline; }
 
-.portrait-actions { padding: 12px 0 16px; }
+.portrait-actions { display: flex; gap: 10px; padding: 12px 0 16px; }
+.portrait-toast { position: absolute; left: 50%; bottom: 76px; transform: translateX(-50%); background: var(--ink); color: var(--paper); font: 13px var(--font-sans); padding: 9px 16px; border-radius: 999px; box-shadow: 0 6px 24px rgba(0,0,0,.14); animation: om-pop .2s ease both; }
 .portrait-error { color: #b00020; font: 12px var(--font-mono); padding-bottom: 12px; }

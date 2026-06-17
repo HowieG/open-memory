@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
@@ -72,7 +72,11 @@ test("upload -> memory store confirmation -> memories page -> render a conversat
 test("emoji portrait: import -> consent -> streamed radial portrait -> hover excerpt -> open convo", async () => {
   // Fresh store so the app boots into the import flow (where the portrait is offered).
   const freshStore = mkdtempSync(path.join(tmpdir(), "om-store-portrait-"));
-  const app = await electron.launch({ args: [APP_DIR], env: { ...process.env, OM_STORE_DIR: freshStore } });
+  // OM_NO_EXTERNAL: share copies to clipboard but does NOT open the X composer in CI.
+  const app = await electron.launch({
+    args: [APP_DIR],
+    env: { ...process.env, OM_STORE_DIR: freshStore, OM_NO_EXTERNAL: "1" },
+  });
   await app.evaluate(async ({ dialog }, p) => {
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [p] });
   }, zipPath);
@@ -97,6 +101,18 @@ test("emoji portrait: import -> consent -> streamed radial portrait -> hover exc
   await expect(win.getByTestId("excerpt")).toBeVisible();
 
   await win.screenshot({ path: path.join(HERE, "qa-portrait.png") });
+
+  // share: captures the card to the clipboard (X composer suppressed via OM_NO_EXTERNAL)
+  await win.getByTestId("portrait-share").click();
+  await expect(win.getByTestId("portrait-toast")).toContainText("copied", { timeout: 10_000 });
+
+  // E7: a complete draw is cached to disk (keyed on the conversation set) so a
+  // revisit replays instead of re-running/re-paying.
+  const cachePath = path.join(freshStore, "emoji-portrait.json");
+  expect(existsSync(cachePath)).toBe(true);
+  const cache = JSON.parse(readFileSync(cachePath, "utf8"));
+  expect(cache.hash).toBeTruthy();
+  expect(cache.signals.length).toBeGreaterThan(0);
 
   // clicking an emoji opens its source conversation
   await tiles.first().click();

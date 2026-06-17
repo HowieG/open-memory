@@ -25,12 +25,13 @@ contextBridge.exposeInMainWorld("api", {
   forgetFact: (id) => ipcRenderer.invoke("forget-fact", id),
 
   // emoji portrait (first-delight) — streaming
-  startEmojiPortrait: (providerId, config, max) =>
-    ipcRenderer.invoke("start-emoji-portrait", { providerId, config, max }),
+  startEmojiPortrait: (providerId, config, max, force) =>
+    ipcRenderer.invoke("start-emoji-portrait", { providerId, config, max, force }),
   cancelEmojiPortrait: () => ipcRenderer.invoke("cancel-emoji-portrait"),
   onEmojiSignal: (cb) => {
     const handler = (_event, sig) => cb(sig);
     ipcRenderer.on("emoji-signal", handler);
     return () => ipcRenderer.removeListener("emoji-signal", handler);
   },
+  sharePortrait: (rect, text) => ipcRenderer.invoke("share-portrait", { rect, text }),
 });
