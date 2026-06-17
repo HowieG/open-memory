@@ -103,3 +103,45 @@ button.link.danger:hover { color: #b00020; }
 .om-bubble pre { background: #0d0d0d; color: #eee; padding: 10px; border-radius: 8px; overflow: auto; }
 .om-row.om-user .om-bubble pre { background: #000; }
 .om-bubble code { font-family: var(--font-mono); font-size: 13px; }
+
+/* ---- emoji portrait (first-delight) ---- */
+.portrait-consent { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 32px; text-align: center; }
+.portrait-consent h2 { margin: 0; font-family: var(--font-display); font-weight: 500; font-size: 26px; }
+.portrait-consent .tease { font-size: 17px; max-width: 46ch; margin: 0; }
+.portrait-consent .tease em { font-style: italic; }
+.portrait-consent .fineprint { font: 12px/1.5 var(--font-mono); color: var(--muted); max-width: 52ch; margin: 0; }
+.consent-actions { display: flex; gap: 10px; margin-top: 8px; }
+
+.portrait { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; overflow: hidden; padding: 16px 24px 0; }
+.portrait-count { font: 12px var(--font-mono); color: var(--muted); letter-spacing: .02em; min-height: 18px; }
+.portrait-count .dots::after { content: "…"; animation: om-dots 1.2s steps(4, end) infinite; }
+@keyframes om-dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
+
+.portrait-canvas { position: relative; flex: 1; width: 100%; min-height: 0; }
+.portrait-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+.wordmark { font-family: var(--font-display); font-size: 30px; color: var(--muted); letter-spacing: -0.01em; }
+.wordmark b { color: var(--ink); font-weight: 700; }
+
+.emoji-tile {
+  position: absolute; left: 50%; top: 50%;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: transparent; border: 0; padding: 4px; border-radius: 12px; cursor: pointer;
+  animation: om-pop .32s cubic-bezier(.2, .9, .3, 1.2) both;
+}
+.emoji-tile:hover, .emoji-tile:focus-visible { background: #fff; outline: 1px solid var(--line); }
+.emoji-tile:focus-visible { outline: 2px solid var(--ink); }
+.emoji-glyph { font-size: 30px; line-height: 1; }
+.emoji-caption { font: 10px var(--font-mono); color: var(--muted); max-width: 96px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@keyframes om-pop { from { opacity: 0; transform: translate(-50%, -50%) scale(.4); } to { opacity: 1; } }
+
+/* assistant-ui-style excerpt: matched line, faded at the bottom = "there's more, stored" */
+.excerpt-pop { position: absolute; left: 50%; bottom: 68px; transform: translateX(-50%); display: flex; gap: 10px; align-items: flex-start; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; max-width: min(460px, 88%); box-shadow: 0 6px 24px rgba(0,0,0,.08); }
+.excerpt-emoji { font-size: 22px; line-height: 1.2; }
+.excerpt-body { min-width: 0; }
+.excerpt-bubble { position: relative; max-height: 4.2em; overflow: hidden; font-size: 14px; color: var(--ink); }
+.excerpt-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 1.6em; background: linear-gradient(to bottom, transparent, #fff); }
+.excerpt-open { background: transparent; color: var(--muted); border: 0; padding: 4px 0 0; font: 11px var(--font-mono); cursor: pointer; }
+.excerpt-open:hover { color: var(--ink); text-decoration: underline; }
+
+.portrait-actions { padding: 12px 0 16px; }
+.portrait-error { color: #b00020; font: 12px var(--font-mono); padding-bottom: 12px; }

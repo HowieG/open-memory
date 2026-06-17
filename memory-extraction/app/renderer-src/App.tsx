@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ConversationView } from "./ConversationView";
 import { MemoriesView } from "./MemoriesView";
+import { PortraitView } from "./PortraitView";
 import type { ConvData, ConvMeta, Eligibility, MemoriesDoc, ProviderInfo, RateLimitInfo, UploadResult } from "./env";
 
 // Real brand logos dropped into ./logos/ (openai|claude|gemini . svg|png) render
@@ -44,7 +45,7 @@ function Logo({ source }: { source: string }) {
   return <span className="om-dot">•</span>;
 }
 
-type View = "memories" | "conversations" | "import";
+type View = "memories" | "conversations" | "import" | "portrait";
 
 export function App() {
   const api = window.api;
@@ -192,6 +193,10 @@ export function App() {
             />
           )}
 
+          {view === "portrait" && (
+            <PortraitView onOpenConversation={selectConv} onSkip={() => setView("memories")} />
+          )}
+
           {view === "conversations" &&
             (selected ? (
               <div className="conv-pane">
@@ -211,7 +216,8 @@ export function App() {
                 <>
                   <div className="checkline"><span className="check">✓</span><h2>Conversations uploaded to your memory store</h2></div>
                   <div className="status">{importResult.count} from {importResult.source}{importResult.failed ? ` · ${importResult.failed} skipped` : ""}</div>
-                  <button data-testid="to-memories" onClick={() => setView("memories")}>See your memories →</button>
+                  <button data-testid="to-portrait" onClick={() => setView("portrait")}>Draw my portrait ✨</button>
+                  <button className="secondary" data-testid="to-memories" onClick={() => setView("memories")}>See your memories →</button>
                   <button className="secondary" onClick={() => setImportResult(null)}>Import another</button>
                 </>
               ) : (
