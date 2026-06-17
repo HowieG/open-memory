@@ -1,0 +1,31 @@
+{
+  "name": "@open-memory/ingest",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Headless core: AI chat exports (ChatGPT, Claude, Gemini) -> canonical conversation format. Text-only.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "om-ingest": "src/cli.ts"
+  },
+  "scripts": {
+    "subset": "tsx src/cli.ts subset",
+    "subset:all": "tsx src/cli.ts subset-all",
+    "render": "tsx src/cli.ts render",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "marked": "^14.1.0",
+    "yauzl": "^3.2.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/yauzl": "^2.10.3",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}
