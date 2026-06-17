@@ -3,15 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { dirReader } from "./dir";
 import { renderConversationsHtml } from "./render";
-import { chatgptAdapter } from "./sources/chatgpt/adapter";
-import { claudeAdapter } from "./sources/claude/adapter";
-import type { SourceAdapter } from "./sources/types";
+import { adapters } from "./sources/registry";
 import { subset } from "./subset";
-
-const ADAPTERS: Record<string, SourceAdapter> = {
-  chatgpt: chatgptAdapter,
-  claude: claudeAdapter,
-};
 
 /**
  * Dev CLI. The only command shipped in Milestone 1 is `subset` (fixture creation);
@@ -83,9 +76,9 @@ async function runSubsetAll(args: string[]): Promise<void> {
 async function runRender(args: string[]): Promise<void> {
   const source = flag(args, "source") ?? "chatgpt";
   const inDir = path.resolve(flag(args, "in") ?? DEFAULT_OUT);
-  const adapter = ADAPTERS[source];
+  const adapter = adapters[source];
   if (!adapter) {
-    throw new Error(`no adapter built yet for "${source}" (have: ${Object.keys(ADAPTERS).join(", ")})`);
+    throw new Error(`no adapter built yet for "${source}" (have: ${Object.keys(adapters).join(", ")})`);
   }
   const srcDir = path.join(inDir, source);
   const out = path.resolve(flag(args, "out") ?? path.join(srcDir, "preview.html"));

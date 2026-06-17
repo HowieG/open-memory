@@ -1,0 +1,19 @@
+{
+  "name": "@open-memory/app",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Minimal Electron shell — drop an export .zip, see your conversations. M1.",
+  "main": "main.js",
+  "scripts": {
+    "build-core": "esbuild ../core/src/index.ts --bundle --platform=node --format=cjs --outfile=core.cjs",
+    "start": "npm run build-core && electron .",
+    "smoke": "npm run build-core && node smoke.mjs",
+    "e2e": "npm run build-core && playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "electron": "^33.2.0",
+    "esbuild": "^0.24.0",
+    "playwright": "^1.49.0"
+  }
+}
