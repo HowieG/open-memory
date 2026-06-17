@@ -23,12 +23,12 @@ export function isEligibleForMemory(c: CanonicalConversation): boolean {
   return c.source_metadata?.is_do_not_remember !== true;
 }
 
-/** Yield eligible conversations, oldest-first. The store's index is already
- *  chronological; each conversation is loaded lazily from disk. */
+/** Yield eligible conversations, NEWEST-first (most recent activity prioritized,
+ *  so a capped run captures the user's current state). Loaded lazily from disk. */
 export async function* memoryExtractionSource(
   store: ConversationStore,
 ): AsyncGenerator<CanonicalConversation> {
-  for (const entry of store.list()) {
+  for (const entry of [...store.list()].reverse()) {
     const c = await store.get(entry.id);
     if (c && isEligibleForMemory(c)) yield c;
   }

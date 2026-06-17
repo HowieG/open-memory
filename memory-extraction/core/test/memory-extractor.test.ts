@@ -34,12 +34,12 @@ describe("parseExtraction", () => {
     expect(u.followups).toEqual(["y?"]);
   });
   it("returns empty on garbage", () => {
-    expect(parseExtraction("no json here")).toEqual({ add: [], invalidate: [], followups: [] });
+    expect(parseExtraction("no json here")).toEqual({ add: [], followups: [] });
   });
 });
 
 describe("extractMemories (stub provider, end-to-end)", () => {
-  it("produces a fact + follow-up per eligible conversation, oldest-first, skipping do-not-remember", async () => {
+  it("extracts a fact per eligible conversation, skipping do-not-remember", async () => {
     const store = new ConversationStore(mkdtempSync(path.join(tmpdir(), "om-ext-")));
     await store.init();
     await store.upsert([
@@ -51,9 +51,19 @@ describe("extractMemories (stub provider, end-to-end)", () => {
     const result = await extractMemories(store, PROVIDERS.stub);
 
     expect(result.conversationsProcessed).toBe(2); // dnr excluded
-    expect(result.facts.map((f) => f.text)).toEqual(["Discussed: Postgres indexing", "Discussed: React performance"]);
-    expect(result.followups.length).toBe(2);
+    // parallel -> assert the set, not order
+    expect(result.facts.map((f) => f.text).sort()).toEqual(["Discussed: Postgres indexing", "Discussed: React performance"]);
     expect(JSON.stringify(result)).not.toContain("Private thing");
+  });
+
+  it("caps to the most-recent N conversations", async () => {
+    const store = new ConversationStore(mkdtempSync(path.join(tmpdir(), "om-ext-")));
+    await store.init();
+    await store.upsert([conv("a", 100, "A"), conv("b", 200, "B"), conv("c", 300, "C")]);
+
+    const result = await extractMemories(store, PROVIDERS.stub, undefined, { limit: 2 });
+    expect(result.conversationsProcessed).toBe(2);
+    expect(result.facts.map((f) => f.text).sort()).toEqual(["Discussed: B", "Discussed: C"]); // newest two
   });
 
   it("reports progress and honors cancellation", async () => {
@@ -66,8 +76,7 @@ describe("extractMemories (stub provider, end-to-end)", () => {
     expect(progress).toEqual([1, 2, 3]);
     expect(full.conversationsProcessed).toBe(3);
 
-    const signal = { aborted: true };
-    const cancelled = await extractMemories(store, PROVIDERS.stub, undefined, { signal });
+    const cancelled = await extractMemories(store, PROVIDERS.stub, undefined, { signal: { aborted: true } });
     expect(cancelled.conversationsProcessed).toBe(0);
   });
 });

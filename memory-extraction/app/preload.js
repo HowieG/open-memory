@@ -14,7 +14,7 @@ contextBridge.exposeInMainWorld("api", {
   memoryEligibility: () => ipcRenderer.invoke("memory-eligibility"),
   listProviders: () => ipcRenderer.invoke("list-providers"),
   getMemories: () => ipcRenderer.invoke("get-memories"),
-  extractMemories: (providerId, config) => ipcRenderer.invoke("extract-memories", { providerId, config }),
+  extractMemories: (providerId, config, limit) => ipcRenderer.invoke("extract-memories", { providerId, config, limit }),
   cancelExtract: () => ipcRenderer.invoke("cancel-extract"),
   onExtractProgress: (cb) => {
     const handler = (_event, n) => cb(n);
