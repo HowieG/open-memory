@@ -59,6 +59,31 @@ const KEYWORD_RULES: Array<[string[], string]> = [
   [["religion", "faith", "spiritual", "buddhism", "christian"], "🕊️"],
   [["nature", "wildlife", "bird", "camping", "outdoors"], "🏕️"],
   [["love", "relationship", "dating", "marriage"], "❤️"],
+  // fun & subculture
+  [["chess"], "♟️"],
+  [["poker", "casino", "blackjack", "gambling"], "🃏"],
+  [["dnd", "dungeons", "tabletop", "dice", "dragons"], "🐉"],
+  [["magic", "tarot", "astrology", "horoscope", "occult"], "🔮"],
+  [["tattoo", "tattoos", "ink"], "🖋️"],
+  [["vinyl", "records", "dj", "turntable"], "💿"],
+  [["skate", "skateboard", "skating"], "🛹"],
+  [["fishing", "angling", "fly fishing"], "🎣"],
+  [["anime", "manga", "cosplay"], "🌸"],
+  [["wizard", "fantasy", "lord of the rings", "tolkien"], "🧙"],
+  [["alien", "ufo", "extraterrestrial", "sci-fi"], "🛸"],
+  [["disco", "clubbing", "nightlife", "rave"], "🪩"],
+  [["king", "queen", "royal", "luxury"], "👑"],
+  [["pirate", "treasure"], "🏴‍☠️"],
+  [["meme", "memes", "shitpost"], "😎"],
+  [["beer", "homebrew", "ipa"], "🍺"],
+  [["sushi", "ramen", "japanese food"], "🍣"],
+  [["pizza"], "🍕"],
+  [["taco", "tacos", "mexican food", "burrito"], "🌮"],
+  [["spice", "spicy", "hot sauce", "chili"], "🌶️"],
+  [["surfing", "skydiving", "adrenaline", "extreme"], "🪂"],
+  [["robot", "robotics", "drone", "hardware"], "🤖"],
+  [["crypto", "bitcoin", "ethereum", "web3", "blockchain"], "🪙"],
+  [["dog training", "puppy"], "🦮"],
 ];
 
 /** Extra emoji the model may choose beyond the keyword-rule set — broad coverage
@@ -79,6 +104,16 @@ const EXTRA_EMOJI: string[] = [
   "🐦", "🦋", "🐢", "🐠", "🦊", "🐻", "🐼", "🦁", "🐧", "🐙", "🦕", "🌲", "🌵", "🍄", "🌸", "🔥", "🌙", "⭐", "🌊", "🪸",
   // life & body
   "❤️", "🧗", "🕺", "💃", "🎓", "🏡", "🔑", "👟", "🎒", "🧳", "🪙", "🩹", "🦷", "💪", "🧴", "🧵",
+  // fun & whimsy
+  "🐉", "🦄", "🧙", "🧚", "🧜", "🦸", "🥷", "👾", "🛸", "👽", "🤠", "🤖", "🪩", "🎪", "🎢", "🎠", "🕹️", "🧩",
+  "🔮", "🪄", "🎩", "👑", "💎", "🌈", "⚡", "☄️", "🪐", "🌚", "🦖", "🦒", "🦛", "🦦", "🦔", "🦉", "🦜", "🐊",
+  "🐳", "🦈", "🦀", "🦞", "🐲", "🦩", "🦚", "🐝", "🦂", "🕷️", "🐌", "🦅",
+  // more food & vice
+  "🍩", "🍪", "🧇", "🥞", "🌭", "🍿", "🥑", "🌯", "🥟", "🍜", "🍱", "🧉", "🍸", "🥂", "🎂", "🍦", "🍯", "🫔",
+  // more sound & scene
+  "🪗", "🎙️", "📻", "🪕", "🥁", "🎺", "🎬", "🖼️", "📸", "🛼", "🤺", "🥋", "🎳", "🪁", "🧸", "🪀",
+  // marks & vibes
+  "☯️", "♾️", "♻️", "🧿", "🗿", "⚓", "🧭", "🔱", "♠️", "🀄", "🎴", "🪬", "🛟",
 ];
 
 /** The allowlist the model may choose from (and we validate against). */

@@ -57,9 +57,9 @@ describe("emoji-set", () => {
   });
 
   it("coerces an off-set emoji to the neutral fallback (never an accidental match)", () => {
-    expect(coerceEmoji("🦄", "my motorcycle")).toBe(FALLBACK_EMOJI); // 🦄 not curated -> ✨
+    expect(coerceEmoji("🔠", "my motorcycle")).toBe(FALLBACK_EMOJI); // not curated -> ✨
     expect(coerceEmoji("💻", "coding")).toBe("💻"); // allowed -> kept
-    expect(isAllowedEmoji("🦄")).toBe(false);
+    expect(isAllowedEmoji("🔠")).toBe(false);
   });
 
   it("matches keywords on whole words, not substrings", () => {
@@ -86,7 +86,7 @@ describe("parseConvCandidates", () => {
   it("parses a fenced array, coerces emoji, stamps the convId", () => {
     const raw =
       'Here:\n```json\n[{"keyword":"My Motorcycle","emoji":"🏍️","excerpt":"rebuilt the carb"},' +
-      '{"keyword":"unicorn lore","emoji":"🦄","excerpt":"x"}]\n```';
+      '{"keyword":"random thing","emoji":"🔠","excerpt":"x"}]\n```';
     const got = parseConvCandidates(raw, c);
     expect(got[0]).toEqual({ keyword: "my motorcycle", emoji: "🏍️", sourceConvId: "a", excerpt: "rebuilt the carb" });
     expect(got[1]!.emoji).toBe("✨"); // off-set -> neutral fallback, never a wrong guess
