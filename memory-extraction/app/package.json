@@ -16,6 +16,9 @@
   "dependencies": {
     "@assistant-ui/react": "0.10.50",
     "@assistant-ui/react-markdown": "0.10.9",
+    "@fontsource-variable/fraunces": "^5.2.9",
+    "@fontsource/geist-mono": "^5.2.8",
+    "@fontsource/geist-sans": "^5.2.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
