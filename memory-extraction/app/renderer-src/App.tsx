@@ -115,12 +115,12 @@ export function App() {
   }
 
   // ---- memories ----
-  async function runExtract(providerId: string, config: { apiKey?: string; endpoint?: string }) {
+  async function runExtract(providerId: string, config: { apiKey?: string; endpoint?: string }, limit?: number) {
     setExtracting(true);
     setProgress(0);
     setExtractError(null);
     const unsub = api.onExtractProgress(setProgress);
-    const doc = await api.extractMemories(providerId, config);
+    const doc = await api.extractMemories(providerId, config, limit);
     unsub();
     setExtracting(false);
     if (doc.error) setExtractError(doc.error);
@@ -174,7 +174,7 @@ export function App() {
               progress={progress}
               error={extractError}
               onExtract={runExtract}
-              onPreview={() => runExtract("stub", {})}
+              onPreview={(limit) => runExtract("stub", {}, limit)}
               onCancel={() => api.cancelExtract()}
               onEdit={async (id, text) => setMemories(await api.editFact(id, text))}
               onForget={async (id) => setMemories(await api.forgetFact(id))}

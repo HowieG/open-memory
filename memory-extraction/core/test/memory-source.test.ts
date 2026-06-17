@@ -28,11 +28,11 @@ describe("memory handoff", () => {
     expect(isEligibleForMemory(conv("b", 1, true))).toBe(false);
   });
 
-  it("yields eligible conversations oldest-first, dropping do-not-remember", async () => {
+  it("yields eligible conversations newest-first, dropping do-not-remember", async () => {
     const s = await store(conv("c", 300), conv("dnr", 200, true), conv("a", 100));
     const ids: string[] = [];
     for await (const c of memoryExtractionSource(s)) ids.push(c.id);
-    expect(ids).toEqual(["a", "c"]);
+    expect(ids).toEqual(["c", "a"]);
   });
 
   it("counts eligible vs excluded", async () => {

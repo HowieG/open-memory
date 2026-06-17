@@ -15,8 +15,8 @@ interface Props {
   extracting: boolean;
   progress: number;
   error: string | null;
-  onExtract: (providerId: string, config: { apiKey?: string; endpoint?: string }) => void;
-  onPreview: () => void;
+  onExtract: (providerId: string, config: { apiKey?: string; endpoint?: string }, limit?: number) => void;
+  onPreview: (limit?: number) => void;
   onCancel: () => void;
   onEdit: (id: string, text: string) => void;
   onForget: (id: string) => void;
@@ -66,11 +66,15 @@ function FactRow({
   );
 }
 
+const FREE_LIMIT = 25;
+
 export function MemoriesView(props: Props) {
   const { eligibility, providers, memories, extracting, progress, error } = props;
   const [providerId, setProviderId] = useState(providers[0]?.id ?? "");
   const [apiKey, setApiKey] = useState("");
   const [endpoint, setEndpoint] = useState("http://localhost:11434");
+  const [tier, setTier] = useState<"free" | "premium">("free");
+  const limit = tier === "free" ? FREE_LIMIT : undefined;
 
   const selected = providers.find((p) => p.id === providerId) ?? providers[0];
   const hasFacts = !!memories && memories.facts.length > 0;
@@ -123,9 +127,17 @@ export function MemoriesView(props: Props) {
     <div className="memories">
       <h2>Your memories</h2>
       <div className="note">Extract durable facts about you from your conversations — saved, invalidated, and yours to control.</div>
+      <div className="tier" data-testid="tier">
+        <div className="seg">
+          <button className={"seg-btn" + (tier === "free" ? " on" : "")} data-testid="tier-free" onClick={() => setTier("free")}>Free</button>
+          <button className={"seg-btn" + (tier === "premium" ? " on" : "")} data-testid="tier-premium" onClick={() => setTier("premium")}>Premium</button>
+        </div>
+        <div className="privacy">{tier === "free" ? `Free — up to ${FREE_LIMIT} memories.` : "Premium — unlimited (uses more API calls)."}</div>
+      </div>
       {eligibility && (
         <div className="status" data-testid="estimate">
-          {eligibility.eligible} eligible conversation{eligibility.eligible === 1 ? "" : "s"}
+          {tier === "free" ? Math.min(eligibility.eligible, FREE_LIMIT) : eligibility.eligible} of {eligibility.eligible} eligible conversation
+          {eligibility.eligible === 1 ? "" : "s"} processed, most recent first
           {eligibility.excluded ? ` · ${eligibility.excluded} excluded (do-not-remember)` : ""}
         </div>
       )}
@@ -152,10 +164,10 @@ export function MemoriesView(props: Props) {
       )}
       {error && <div className="status err" data-testid="extract-error">{error}</div>}
       <div className="actions">
-        <button data-testid="extract" onClick={() => props.onExtract(providerId, selected?.kind === "api" ? { apiKey } : { endpoint })}>
+        <button data-testid="extract" onClick={() => props.onExtract(providerId, selected?.kind === "api" ? { apiKey } : { endpoint }, limit)}>
           Extract my memories
         </button>
-        <button className="secondary" data-testid="preview" onClick={props.onPreview} title="Run a local preview with no model">
+        <button className="secondary" data-testid="preview" onClick={() => props.onPreview(limit)} title="Run a local preview with no model">
           Preview without a key
         </button>
       </div>

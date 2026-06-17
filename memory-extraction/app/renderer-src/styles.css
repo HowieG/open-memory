@@ -67,6 +67,10 @@ button.link.danger:hover { color: #b00020; }
 .privacy { font-size: 12px; color: var(--muted); }
 .privacy.warn { color: var(--coral); }
 .actions { display: flex; gap: 10px; margin-top: 4px; }
+.tier { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.seg-btn { background: transparent; color: var(--ink); border: 0; border-radius: 0; padding: 6px 18px; }
+.seg-btn.on { background: var(--ink); color: var(--paper); }
 
 .progress { height: 8px; background: #fff; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; max-width: 420px; margin: 8px 0; }
 .progress .bar { height: 100%; background: var(--ink); transition: width .2s; }

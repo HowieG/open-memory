@@ -37,7 +37,7 @@ declare global {
       memoryEligibility(): Promise<Eligibility>;
       listProviders(): Promise<ProviderInfo[]>;
       getMemories(): Promise<MemoriesDoc>;
-      extractMemories(providerId: string, config?: { apiKey?: string; endpoint?: string }): Promise<MemoriesDoc>;
+      extractMemories(providerId: string, config?: { apiKey?: string; endpoint?: string }, limit?: number): Promise<MemoriesDoc>;
       cancelExtract(): Promise<void>;
       onExtractProgress(cb: (processed: number) => void): () => void;
       editFact(id: string, text: string): Promise<MemoriesDoc>;

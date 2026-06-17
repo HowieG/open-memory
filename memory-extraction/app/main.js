@@ -87,8 +87,9 @@ ipcMain.handle("ingest-path", async (_event, zipPath) => {
   }
 });
 
+// newest-first for the sidebar (store.list() is oldest-first; .reverse() is safe — fresh array)
 ipcMain.handle("list-conversations", () =>
-  store.list().map((e) => ({ id: e.id, title: e.title || "(untitled)", source: e.source })),
+  store.list().reverse().map((e) => ({ id: e.id, title: e.title || "(untitled)", source: e.source })),
 );
 
 ipcMain.handle("get-conversation", async (_event, id) => {
@@ -110,12 +111,14 @@ ipcMain.handle("memory-eligibility", () => memoryEligibility(store));
 ipcMain.handle("list-providers", () => rankProviders(sourceCounts()));
 ipcMain.handle("get-memories", () => loadFacts());
 
-ipcMain.handle("extract-memories", async (event, { providerId, config }) => {
+ipcMain.handle("extract-memories", async (event, { providerId, config, limit }) => {
   const provider = PROVIDERS[providerId];
   if (!provider) return { error: `unknown provider "${providerId}"` };
   extractAbort = { aborted: false };
   try {
     const result = await extractMemories(store, provider, config, {
+      limit: typeof limit === "number" ? limit : undefined,
+      concurrency: 5,
       signal: extractAbort,
       onProgress: (n) => event.sender.send("extract-progress", n),
     });

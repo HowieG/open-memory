@@ -1,14 +1,16 @@
 import type { CanonicalConversation } from "../schema";
-import type { ConversationStore } from "../store";
 import { memoryExtractionSource } from "../memory-source";
+import type { ConversationStore } from "../store";
 import type { MemoryProvider, ProviderConfig } from "./providers";
 
 /**
- * The memory extractor. Walks eligible conversations oldest-first (via
- * MemoryExtractionSource) and, for each, asks the chosen provider to update an
- * accumulating picture of the user: save new knowledge, invalidate stale
- * knowledge, and propose follow-up questions. This is the seam that turns the
- * "Your memories" page from placeholders into real, extracted facts.
+ * The memory extractor. Pulls the user's most-recent eligible conversations
+ * (newest-first, capped) and extracts durable facts from each — in PARALLEL with
+ * bounded concurrency, so a Haiku-class model finishes fast without tripping rate
+ * limits. Facts are merged + deduped across conversations afterward.
+ *
+ * Parallel means each conversation is extracted independently (no shared running
+ * state), so cross-conversation consolidation/invalidation is a later pass.
  */
 
 export interface KnowledgeFact {
@@ -23,28 +25,33 @@ export interface ExtractionResult {
   conversationsProcessed: number;
 }
 
+export interface ExtractOptions {
+  /** cap how many (most-recent) conversations to process. Default: all. */
+  limit?: number;
+  /** max in-flight model calls (rate-limit guard). Default: 5. */
+  concurrency?: number;
+  /** called after each conversation finishes (for a progress bar) */
+  onProgress?: (processed: number) => void;
+  /** abort a long run (the user clicked Cancel) */
+  signal?: { aborted: boolean };
+}
+
 interface ExtractionUpdate {
   add: string[];
-  invalidate: string[];
   followups: string[];
 }
 
 const SYSTEM_PROMPT =
-  "You build a durable, evolving picture of a user from their AI chat history. " +
-  "Given what is already known about them and one new conversation, identify any NEW, durable " +
-  "knowledge about them — who they are, their interests, what they're researching or considering, " +
-  "decisions they've made. Invalidate anything the new conversation contradicts or makes stale. " +
-  "Also propose follow-up questions that would complete the picture (e.g. 'are you still doing X?'). " +
-  'Reply with ONLY JSON: {"add": string[], "invalidate": string[], "followups": string[]}. ' +
-  "Each fact is one concise sentence. No prose outside the JSON.";
+  "You extract durable facts about a user from ONE of their AI chat conversations. " +
+  "Identify NEW, durable knowledge about them — who they are, their interests, what they're " +
+  "researching, considering, or have decided. Skip ephemeral details. Also propose follow-up " +
+  "questions that would complete the picture of them. " +
+  'Reply with ONLY JSON: {"add": string[], "followups": string[]}. ' +
+  "Each fact is one concise sentence about the user. No prose outside the JSON.";
 
-function buildUserPrompt(knowledge: KnowledgeFact[], conv: CanonicalConversation): string {
-  const known = knowledge.length ? knowledge.map((f) => `- ${f.text}`).join("\n") : "(nothing known yet)";
+function buildUserPrompt(conv: CanonicalConversation): string {
   const transcript = conv.messages.map((m) => `${m.role}: ${m.content}`).join("\n");
-  return (
-    `Known about the user so far:\n${known}\n\n` +
-    `New conversation from ${conv.source}, title: "${conv.title ?? "(untitled)"}":\n${transcript}`
-  );
+  return `Conversation from ${conv.source}, title: "${conv.title ?? "(untitled)"}":\n${transcript}`;
 }
 
 /** Tolerant JSON parse — strips code fences and trailing prose. */
@@ -53,57 +60,66 @@ export function parseExtraction(raw: string): ExtractionUpdate {
   const body = fenced ? fenced[1]! : raw;
   const start = body.indexOf("{");
   const end = body.lastIndexOf("}");
-  if (start === -1 || end === -1) return { add: [], invalidate: [], followups: [] };
+  if (start === -1 || end === -1) return { add: [], followups: [] };
   try {
     const obj = JSON.parse(body.slice(start, end + 1)) as Partial<ExtractionUpdate>;
     const arr = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
-    return { add: arr(obj.add), invalidate: arr(obj.invalidate), followups: arr(obj.followups) };
+    return { add: arr(obj.add), followups: arr(obj.followups) };
   } catch {
-    return { add: [], invalidate: [], followups: [] };
+    return { add: [], followups: [] };
   }
 }
 
-function applyUpdate(facts: Map<string, KnowledgeFact>, update: ExtractionUpdate, convId: string): void {
-  for (const text of update.invalidate) {
-    const needle = text.toLowerCase();
-    for (const key of [...facts.keys()]) {
-      if (key.toLowerCase().includes(needle) || needle.includes(key.toLowerCase())) facts.delete(key);
+/** bounded-concurrency map */
+async function pMap<T>(items: T[], concurrency: number, fn: (item: T) => Promise<void>): Promise<void> {
+  const queue = [...items];
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      const item = queue.shift();
+      if (item === undefined) return;
+      await fn(item);
     }
-  }
-  for (const text of update.add) {
-    const existing = facts.get(text);
-    if (existing) existing.from.push(convId);
-    else facts.set(text, { text, from: [convId] });
-  }
+  };
+  await Promise.all(Array.from({ length: Math.min(Math.max(1, concurrency), queue.length || 1) }, worker));
 }
 
-export interface ExtractOptions {
-  /** called after each conversation is processed (for a progress bar) */
-  onProgress?: (processed: number) => void;
-  /** abort a long run (the user clicked Cancel) */
-  signal?: { aborted: boolean };
-}
-
-/** Run extraction over the whole store with the given provider. Cancellable; reports progress. */
+/** Run extraction over the most-recent eligible conversations, in parallel. */
 export async function extractMemories(
   store: ConversationStore,
   provider: MemoryProvider,
   config?: ProviderConfig,
   opts: ExtractOptions = {},
 ): Promise<ExtractionResult> {
+  const limit = opts.limit ?? Infinity;
+
+  // newest-first, capped
+  const conversations: CanonicalConversation[] = [];
+  for await (const conv of memoryExtractionSource(store)) {
+    conversations.push(conv);
+    if (conversations.length >= limit) break;
+  }
+
   const facts = new Map<string, KnowledgeFact>();
   const followups: string[] = [];
   let processed = 0;
 
-  for await (const conv of memoryExtractionSource(store)) {
-    if (opts.signal?.aborted) break;
-    const raw = await provider.complete(SYSTEM_PROMPT, buildUserPrompt([...facts.values()], conv), config);
-    const update = parseExtraction(raw);
-    applyUpdate(facts, update, conv.id);
+  await pMap(conversations, opts.concurrency ?? 5, async (conv) => {
+    if (opts.signal?.aborted) return;
+    let update: ExtractionUpdate = { add: [], followups: [] };
+    try {
+      update = parseExtraction(await provider.complete(SYSTEM_PROMPT, buildUserPrompt(conv), config));
+    } catch {
+      // one failed conversation doesn't abort the run
+    }
+    for (const text of update.add) {
+      const existing = facts.get(text);
+      if (existing) existing.from.push(conv.id);
+      else facts.set(text, { text, from: [conv.id] });
+    }
     for (const f of update.followups) if (!followups.includes(f)) followups.push(f);
     processed++;
     opts.onProgress?.(processed);
-  }
+  });
 
   return { facts: [...facts.values()], followups, conversationsProcessed: processed };
 }
