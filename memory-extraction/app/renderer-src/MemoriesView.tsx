@@ -1,5 +1,23 @@
-import { useState } from "react";
-import type { Eligibility, Fact, MemoriesDoc, ProviderInfo } from "./env";
+import { useMemo, useState } from "react";
+import type { Eligibility, Fact, MemoriesDoc, ProviderInfo, RateLimitInfo } from "./env";
+
+/** The fixed buckets (mirror of core's BUCKETS) and their paper-palette accents. */
+const BUCKETS = ["Body", "Work", "Places", "Taste", "People", "Money"] as const;
+type Bucket = (typeof BUCKETS)[number];
+const BUCKET_COLORS: Record<Bucket, string> = {
+  Body: "#d97757",
+  Work: "#7c6cf0",
+  Places: "#3fae7a",
+  Taste: "#d86c9e",
+  People: "#5b8def",
+  Money: "#b08a2e",
+};
+const asBucket = (v?: string): Bucket | null => (v && (BUCKETS as readonly string[]).includes(v) ? (v as Bucket) : null);
+
+/** How many open threads to reveal per page. */
+const THREADS_PAGE = 6;
+const dayKey = (ms: number): string => { const d = new Date(ms); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
+const formatDay = (ms: number): string => new Date(ms).toLocaleDateString(undefined, { weekday: "short", month: "long", day: "numeric", year: "numeric" });
 
 /**
  * The "Your memories" hero. Three states, per the design review:
@@ -14,6 +32,7 @@ interface Props {
   memories: MemoriesDoc | null;
   extracting: boolean;
   progress: number;
+  rateLimited: RateLimitInfo | null;
   error: string | null;
   onExtract: (providerId: string, config: { apiKey?: string; endpoint?: string }, limit?: number) => void;
   onPreview: (limit?: number) => void;
@@ -24,7 +43,7 @@ interface Props {
   onReset: () => void;
 }
 
-function FactRow({
+function FactCard({
   fact,
   onEdit,
   onForget,
@@ -36,32 +55,57 @@ function FactRow({
   onProvenance: (convId: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [revealed, setRevealed] = useState(false);
   const [text, setText] = useState(fact.text);
+  const bucket = asBucket(fact.category);
+  const accent = bucket ? BUCKET_COLORS[bucket] : "var(--muted)";
+  const locked = !!fact.sensitive && !revealed;
   return (
-    <div className="fact" data-testid="fact">
+    <div className="fact-card" data-testid="fact" data-bucket={bucket ?? "none"}>
+      <div className="fact-cat" style={{ color: accent }}>
+        <span className="fact-dot" style={{ background: accent }} />
+        {bucket ?? "Other"}
+        {fact.sensitive && (
+          <span
+            className="fact-lock"
+            role="button"
+            tabIndex={0}
+            title={locked ? "Sensitive — click to reveal" : "Hide"}
+            onClick={() => setRevealed((r) => !r)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setRevealed((r) => !r); } }}
+          >
+            {locked ? "🔒" : "🔓"}
+          </span>
+        )}
+      </div>
       {editing ? (
-        <input className="fact-edit" value={text} onChange={(e) => setText(e.target.value)} aria-label="Edit memory" />
+        <textarea className="fact-edit" value={text} onChange={(e) => setText(e.target.value)} aria-label="Edit memory" rows={2} />
       ) : (
-        <span className="fact-text">{fact.text}</span>
+        <div
+          className={"fact-text" + (locked ? " locked" : "")}
+          onClick={() => locked && setRevealed(true)}
+        >
+          {fact.text}
+        </div>
       )}
-      <button
-        className="prov"
-        title="Where this came from"
-        onClick={() => fact.from[0] && onProvenance(fact.from[0])}
-      >
-        from {fact.from.length} conversation{fact.from.length === 1 ? "" : "s"}
-      </button>
-      {editing ? (
-        <>
-          <button className="link" onClick={() => { onEdit(fact.id, text.trim()); setEditing(false); }}>Save</button>
-          <button className="link" onClick={() => { setText(fact.text); setEditing(false); }}>Cancel</button>
-        </>
-      ) : (
-        <>
-          <button className="link" data-testid="fact-edit" onClick={() => setEditing(true)}>Edit</button>
-          <button className="link danger" data-testid="fact-forget" onClick={() => onForget(fact.id)}>Forget</button>
-        </>
-      )}
+      <div className="fact-foot">
+        <button className="prov" title="Where this came from" onClick={() => fact.from[0] && onProvenance(fact.from[0])}>
+          {fact.from.length} conversation{fact.from.length === 1 ? "" : "s"}
+        </button>
+        <span className="fact-actions">
+          {editing ? (
+            <>
+              <button className="link" onClick={() => { onEdit(fact.id, text.trim()); setEditing(false); }}>Save</button>
+              <button className="link" onClick={() => { setText(fact.text); setEditing(false); }}>Cancel</button>
+            </>
+          ) : (
+            <>
+              <button className="link" data-testid="fact-edit" onClick={() => setEditing(true)}>Edit</button>
+              <button className="link danger" data-testid="fact-forget" onClick={() => onForget(fact.id)}>Forget</button>
+            </>
+          )}
+        </span>
+      </div>
     </div>
   );
 }
@@ -69,16 +113,27 @@ function FactRow({
 const FREE_LIMIT = 25;
 
 export function MemoriesView(props: Props) {
-  const { eligibility, providers, memories, extracting, progress, error } = props;
+  const { eligibility, providers, memories, extracting, progress, rateLimited, error } = props;
   const [providerId, setProviderId] = useState(providers[0]?.id ?? "");
   const [apiKey, setApiKey] = useState("");
   const [endpoint, setEndpoint] = useState("http://localhost:11434");
   const [tier, setTier] = useState<"free" | "premium">("free");
+  const [filter, setFilter] = useState<"All" | Bucket>("All");
+  const [threadsShown, setThreadsShown] = useState(THREADS_PAGE);
   const limit = tier === "free" ? FREE_LIMIT : undefined;
 
   const selected = providers.find((p) => p.id === providerId) ?? providers[0];
   const hasFacts = !!memories && memories.facts.length > 0;
   const extracted = !!memories?.extractedAt;
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const f of memories?.facts ?? []) {
+      const b = asBucket(f.category);
+      if (b) c[b] = (c[b] ?? 0) + 1;
+    }
+    return c;
+  }, [memories]);
 
   if (extracting) {
     const total = eligibility?.eligible ?? 0;
@@ -89,23 +144,107 @@ export function MemoriesView(props: Props) {
         <div className="note">Reading your conversations and building a picture of you.</div>
         <div className="progress"><div className="bar" style={{ width: `${pct}%` }} /></div>
         <div className="status">{progress} of {total} conversations</div>
+        {rateLimited && (
+          <div className="ratelimit" data-testid="ratelimit">
+            ⏸ Hit a rate limit — pausing and retrying (waiting {Math.round(rateLimited.waitMs / 1000)}s, attempt {rateLimited.attempt})…
+          </div>
+        )}
         <button className="secondary" data-testid="cancel-extract" onClick={props.onCancel}>Cancel</button>
       </div>
     );
   }
 
   if (hasFacts) {
+    const facts = memories!.facts;
+    const extractedMs = (memories!.extractedAt && Date.parse(memories!.extractedAt)) || Date.now();
+    const shown = filter === "All" ? facts : facts.filter((f) => asBucket(f.category) === filter);
+
+    // Group the visible memories by the day of their newest source conversation.
+    const byDay = new Map<string, { ms: number; facts: Fact[] }>();
+    for (const f of shown) {
+      const ms = f.date ?? extractedMs;
+      const key = dayKey(ms);
+      const g = byDay.get(key) ?? { ms, facts: [] };
+      g.facts.push(f);
+      byDay.set(key, g);
+    }
+    const dayGroups = [...byDay.entries()].sort((a, b) => b[1].ms - a[1].ms);
+
+    const fus = memories!.followups;
+    const visibleThreads = fus.slice(0, threadsShown);
+    const threadsLeft = fus.length - visibleThreads.length;
+
     return (
-      <div className="memories">
+      <div className="memories memories-wide">
         <h2>Your memories</h2>
         <div className="status">
-          Extracted from {memories!.processed ?? memories!.facts.length} conversations
+          Extracted from {memories!.processed ?? facts.length} conversations
           {eligibility?.excluded ? ` · ${eligibility.excluded} excluded (do-not-remember)` : ""}
           <button className="link" data-testid="reextract" onClick={props.onReset}>Re-extract</button>
         </div>
-        <div className="facts" data-testid="facts">
-          {memories!.facts.map((f) => (
-            <FactRow key={f.id} fact={f} onEdit={props.onEdit} onForget={props.onForget} onProvenance={props.onProvenance} />
+
+        {fus.length > 0 && (
+          <>
+            <div className="section-head">Open threads <span className="section-hint">{fus.length}</span></div>
+            <div className="threads">
+              {visibleThreads.map((t, i) => (
+                <div className="thread-card" key={i}>{t}</div>
+              ))}
+            </div>
+            {(threadsLeft > 0 || threadsShown > THREADS_PAGE) && (
+              <div className="threads-controls">
+                {threadsLeft > 0 && (
+                  <button className="threads-toggle" onClick={() => setThreadsShown((n) => n + THREADS_PAGE)}>
+                    View {Math.min(THREADS_PAGE, threadsLeft)} more · {threadsLeft} left ↓
+                  </button>
+                )}
+                {threadsShown > THREADS_PAGE && (
+                  <button className="threads-toggle" onClick={() => setThreadsShown(THREADS_PAGE)}>Collapse ↑</button>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        <div className="section-head">
+          What I've learned <span className="section-hint">hover a card to edit or forget</span>
+        </div>
+        <div className="bucket-bar" data-testid="bucket-bar">
+          <button className={"chip" + (filter === "All" ? " on" : "")} onClick={() => setFilter("All")}>
+            All <span className="chip-n">{facts.length}</span>
+          </button>
+          {BUCKETS.map((b) => {
+            const n = counts[b] ?? 0;
+            return (
+              <button
+                key={b}
+                className={"chip" + (filter === b ? " on" : "") + (n === 0 ? " empty" : "")}
+                style={filter === b ? { background: BUCKET_COLORS[b], borderColor: BUCKET_COLORS[b], color: "#fff" } : { color: BUCKET_COLORS[b] }}
+                disabled={n === 0}
+                onClick={() => setFilter(b)}
+              >
+                {b} <span className="chip-n">{n}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div data-testid="facts">
+          {dayGroups.map(([key, g]) => (
+            <div className="date-group" key={key}>
+              <div className="date-marker"><span>{formatDay(g.ms)}</span></div>
+              <div className="facts-grid">
+                {g.facts.map((f) => (
+                  <FactCard
+                    key={f.id}
+                    fact={f}
+                    onEdit={props.onEdit}
+                    onForget={props.onForget}
+                    onProvenance={props.onProvenance}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </div>

@@ -13,10 +13,38 @@ import type { MemoryProvider, ProviderConfig } from "./providers";
  * state), so cross-conversation consolidation/invalidation is a later pass.
  */
 
+/** The fixed memory buckets — drive the Memories view filter + card labels. */
+export const BUCKETS = ["Body", "Work", "Places", "Taste", "People", "Money"] as const;
+export type Bucket = (typeof BUCKETS)[number];
+
+/** Common labels a model reaches for, mapped onto our six buckets. */
+const BUCKET_ALIASES: Record<string, Bucket> = {
+  tech: "Work", technology: "Work", coding: "Work", code: "Work", dev: "Work", development: "Work",
+  engineering: "Work", software: "Work", programming: "Work", career: "Work", business: "Work",
+  project: "Work", projects: "Work", productivity: "Work", ai: "Work", "ai/ml": "Work", startup: "Work",
+  travel: "Places", location: "Places", home: "Places", geography: "Places", place: "Places",
+  health: "Body", fitness: "Body", wellness: "Body", medical: "Body", body: "Body",
+  food: "Taste", style: "Taste", fashion: "Taste", music: "Taste", art: "Taste", hobby: "Taste",
+  hobbies: "Taste", entertainment: "Taste", preferences: "Taste", lifestyle: "Taste",
+  family: "People", relationship: "People", relationships: "People", social: "People", friends: "People",
+  finance: "Money", financial: "Money", investing: "Money", investment: "Money", budget: "Money",
+};
+
+/** Coerce an arbitrary string to a known bucket (case-insensitive, with aliases). */
+export function toBucket(v: unknown): Bucket | undefined {
+  if (typeof v !== "string") return undefined;
+  const k = v.trim().toLowerCase();
+  return BUCKETS.find((b) => b.toLowerCase() === k) ?? BUCKET_ALIASES[k];
+}
+
 export interface KnowledgeFact {
   text: string;
   /** conversation ids this fact was derived from */
   from: string[];
+  /** which bucket this fact belongs to (Body/Work/Places/Taste/People/Money) */
+  category?: Bucket;
+  /** health/financial/employment/relationship → blurred + locked in the UI */
+  sensitive?: boolean;
 }
 
 export interface ExtractionResult {
@@ -36,25 +64,50 @@ export interface ExtractOptions {
   signal?: { aborted: boolean };
 }
 
+export interface ExtractedFact {
+  text: string;
+  category?: Bucket;
+  sensitive?: boolean;
+}
+
 interface ExtractionUpdate {
-  add: string[];
+  add: ExtractedFact[];
   followups: string[];
 }
 
 const SYSTEM_PROMPT =
   "You extract durable facts about a user from ONE of their AI chat conversations. " +
-  "Identify NEW, durable knowledge about them — who they are, their interests, what they're " +
-  "researching, considering, or have decided. Skip ephemeral details. Also propose follow-up " +
-  "questions that would complete the picture of them. " +
-  'Reply with ONLY JSON: {"add": string[], "followups": string[]}. ' +
-  "Each fact is one concise sentence about the user. No prose outside the JSON.";
+  "Be SELECTIVE: capture only NEW, durable, meaningful knowledge about who they are — their identity, " +
+  "ongoing projects, decisions, preferences, and circumstances. Do NOT record ephemeral details, " +
+  "one-off questions, generic technical Q&A, or facts about the assistant's answer rather than the user. " +
+  "Prefer a few high-signal facts over many trivial ones; emit at most 5, and none if the conversation " +
+  "reveals nothing durable about the user. Also propose follow-up questions that would complete their picture. " +
+  "For EACH fact, assign a category bucket — exactly one of: Body (health, fitness, body), " +
+  "Work (career, projects, building, business), Places (travel, where they live/go), " +
+  "Taste (style, food, music, aesthetic preferences), People (relationships, family, friends), " +
+  "Money (personal finance, income, investments). Also mark sensitive=true when the fact concerns " +
+  "health, finances, employment, or relationships. " +
+  'Reply with ONLY JSON: {"add": [{"text": string, "category": string, "sensitive": boolean}], "followups": string[]}. ' +
+  "Each fact text is one concise sentence about the user. No prose outside the JSON.";
 
 function buildUserPrompt(conv: CanonicalConversation): string {
   const transcript = conv.messages.map((m) => `${m.role}: ${m.content}`).join("\n");
   return `Conversation from ${conv.source}, title: "${conv.title ?? "(untitled)"}":\n${transcript}`;
 }
 
-/** Tolerant JSON parse — strips code fences and trailing prose. */
+/** Coerce one `add` item — a bare string (legacy) or {text, category?, sensitive?}. */
+function toFact(x: unknown): ExtractedFact | null {
+  if (typeof x === "string") return x ? { text: x } : null;
+  if (x && typeof x === "object") {
+    const o = x as Record<string, unknown>;
+    if (typeof o.text !== "string" || !o.text) return null;
+    return { text: o.text, category: toBucket(o.category), sensitive: o.sensitive === true };
+  }
+  return null;
+}
+
+/** Tolerant JSON parse — strips code fences and trailing prose. Accepts both the
+ *  legacy `add: string[]` shape and the bucketed `add: {text,category,sensitive}[]`. */
 export function parseExtraction(raw: string): ExtractionUpdate {
   const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(raw);
   const body = fenced ? fenced[1]! : raw;
@@ -63,8 +116,11 @@ export function parseExtraction(raw: string): ExtractionUpdate {
   if (start === -1 || end === -1) return { add: [], followups: [] };
   try {
     const obj = JSON.parse(body.slice(start, end + 1)) as Partial<ExtractionUpdate>;
-    const arr = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
-    return { add: arr(obj.add), followups: arr(obj.followups) };
+    const add = Array.isArray(obj.add) ? obj.add.map(toFact).filter((f): f is ExtractedFact => f !== null) : [];
+    const followups = Array.isArray(obj.followups)
+      ? obj.followups.filter((x): x is string => typeof x === "string")
+      : [];
+    return { add, followups };
   } catch {
     return { add: [], followups: [] };
   }
@@ -111,10 +167,15 @@ export async function extractMemories(
     } catch {
       // one failed conversation doesn't abort the run
     }
-    for (const text of update.add) {
-      const existing = facts.get(text);
-      if (existing) existing.from.push(conv.id);
-      else facts.set(text, { text, from: [conv.id] });
+    for (const f of update.add) {
+      const existing = facts.get(f.text);
+      if (existing) {
+        existing.from.push(conv.id);
+        if (!existing.category && f.category) existing.category = f.category;
+        if (f.sensitive) existing.sensitive = true;
+      } else {
+        facts.set(f.text, { text: f.text, from: [conv.id], category: f.category, sensitive: f.sensitive });
+      }
     }
     for (const f of update.followups) if (!followups.includes(f)) followups.push(f);
     processed++;

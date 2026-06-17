@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { CanonicalConversation, ConversationIndexEntry } from "./schema";
 
@@ -58,9 +58,13 @@ export class ConversationStore {
       async (c) => {
         const file = fileFor(c.id);
         await writeFile(path.join(this.convDir, file), JSON.stringify(c), "utf8");
+        const prev = this.index.get(c.id);
         const entry: ConversationIndexEntry = { id: c.id, source: c.source, file };
         if (c.title !== undefined) entry.title = c.title;
         if (c.created_at !== undefined) entry.created_at = c.created_at;
+        // preserve classify-pass annotations across re-upload
+        if (prev?.sensitive !== undefined) entry.sensitive = prev.sensitive;
+        if (prev?.category !== undefined) entry.category = prev.category;
         this.index.set(c.id, entry);
       },
       50,
@@ -75,6 +79,29 @@ export class ConversationStore {
   /** Lightweight list for the sidebar/timeline, chronological. Reads only the index. */
   list(): ConversationIndexEntry[] {
     return [...this.index.values()].sort((a, b) => (a.created_at ?? 0) - (b.created_at ?? 0));
+  }
+
+  /** Merge classify-pass tags (sensitive/category) onto index entries, persisting once. */
+  async applyTags(tags: { id: string; sensitive?: boolean; category?: string }[]): Promise<void> {
+    let changed = false;
+    for (const t of tags) {
+      const entry = this.index.get(t.id);
+      if (!entry) continue;
+      const next = { ...entry };
+      if (t.sensitive !== undefined) next.sensitive = t.sensitive;
+      if (t.category !== undefined) next.category = t.category;
+      this.index.set(t.id, next);
+      changed = true;
+    }
+    if (changed) await this.writeIndex();
+  }
+
+  /** Wipe all conversations + the index from disk (the Settings "clear conversations"). */
+  async clear(): Promise<void> {
+    this.index = new Map();
+    await rm(this.convDir, { recursive: true, force: true });
+    await mkdir(this.convDir, { recursive: true });
+    await this.writeIndex();
   }
 
   /** Load a single conversation's full content from disk (lazy). */
