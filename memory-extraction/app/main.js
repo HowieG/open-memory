@@ -11,6 +11,9 @@ const {
   rankProviders,
   PROVIDERS,
   extractMemories,
+  consolidateFacts,
+  classifyConversations,
+  heuristicTag,
   extractEmojiPortrait,
 } = require("./core.cjs");
 
@@ -107,7 +110,7 @@ ipcMain.handle("ingest-path", async (_event, zipPath) => {
 
 // newest-first for the sidebar (store.list() is oldest-first; .reverse() is safe — fresh array)
 ipcMain.handle("list-conversations", () =>
-  store.list().reverse().map((e) => ({ id: e.id, title: e.title || "(untitled)", source: e.source })),
+  store.list().reverse().map((e) => ({ id: e.id, title: e.title || "(untitled)", source: e.source, sensitive: !!e.sensitive })),
 );
 
 ipcMain.handle("get-conversation", async (_event, id) => {
@@ -134,13 +137,47 @@ ipcMain.handle("extract-memories", async (event, { providerId, config, limit }) 
   if (!provider) return { error: `unknown provider "${providerId}"` };
   extractAbort = { aborted: false };
   try {
-    const result = await extractMemories(store, provider, config, {
+    const cfg = { ...config, onRateLimit: (info) => event.sender.send("extract-rate-limit", info) };
+    const result = await extractMemories(store, provider, cfg, {
       limit: typeof limit === "number" ? limit : undefined,
       concurrency: 5,
       signal: extractAbort,
       onProgress: (n) => event.sender.send("extract-progress", n),
     });
-    const facts = result.facts.map((f, i) => ({ id: `f${i}`, text: f.text, from: f.from }));
+    // Tag conversations as sensitive/bucketed (Haiku for Claude) so the sidebar can
+    // blur+lock them — and so memory categories have a reliable fallback. Best-effort.
+    try {
+      await classifyConversations(store, provider, cfg, { signal: extractAbort });
+    } catch {
+      /* classify is non-essential; ignore */
+    }
+    // Consolidate: merge near-duplicates, prune trivia, assign buckets. Falls back to
+    // the raw facts on failure, so we never lose memories.
+    let merged = result.facts;
+    try {
+      merged = await consolidateFacts(result.facts, provider, cfg, { signal: extractAbort });
+    } catch {
+      /* keep raw facts */
+    }
+    // Category + date come from a fallback chain so nothing reads "Other":
+    // model fact category -> source conversation's classified bucket -> keyword
+    // heuristic (which always yields a bucket). Date = newest source conversation.
+    const convMeta = {};
+    for (const e of store.list()) convMeta[e.id] = { category: e.category, created_at: e.created_at };
+    const facts = merged.map((f, i) => {
+      const from = f.from || [];
+      const heur = heuristicTag(f.text);
+      const srcCat = from.map((id) => convMeta[id]?.category).find(Boolean);
+      const dates = from.map((id) => convMeta[id]?.created_at).filter((n) => typeof n === "number");
+      return {
+        id: `f${i}`,
+        text: f.text,
+        from,
+        category: f.category || srcCat || heur.category,
+        sensitive: !!f.sensitive || heur.sensitive,
+        date: dates.length ? Math.max(...dates) * 1000 : undefined,
+      };
+    });
     const doc = {
       facts,
       followups: result.followups,
@@ -174,6 +211,18 @@ ipcMain.handle("forget-fact", async (_event, id) => {
   doc.facts = doc.facts.filter((f) => f.id !== id);
   await saveFacts(doc);
   return doc;
+});
+
+// --- settings: clear local data ---
+
+ipcMain.handle("clear-conversations", async () => {
+  await store.clear();
+  return { ok: true };
+});
+
+ipcMain.handle("clear-memories", async () => {
+  await saveFacts(emptyMemories());
+  return { ok: true };
 });
 
 // --- emoji portrait (first-delight) ---

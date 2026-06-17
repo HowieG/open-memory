@@ -17,8 +17,10 @@ import { _electron as electron } from "playwright";
 const HERE = __dirname;
 const APP_DIR = path.resolve(HERE, "..");
 const SAMPLE_DIR = path.join(HERE, "sample");
+const SENSITIVE_DIR = path.join(HERE, "sample-sensitive");
 
 let zipPath: string;
+let sensitiveZipPath: string;
 let storeDir: string;
 
 test.beforeAll(() => {
@@ -26,6 +28,10 @@ test.beforeAll(() => {
   zipPath = path.join(tmp, "CLAUDE_EXPORT_e2e-sample.zip");
   execSync(
     `zip -j -q "${zipPath}" "${path.join(SAMPLE_DIR, "conversations.json")}" "${path.join(SAMPLE_DIR, "users.json")}"`,
+  );
+  sensitiveZipPath = path.join(tmp, "CLAUDE_EXPORT_sensitive.zip");
+  execSync(
+    `zip -j -q "${sensitiveZipPath}" "${path.join(SENSITIVE_DIR, "conversations.json")}" "${path.join(SENSITIVE_DIR, "users.json")}"`,
   );
   // Isolated, empty store per run so the sidebar count is deterministic.
   storeDir = mkdtempSync(path.join(tmpdir(), "om-store-"));
@@ -117,6 +123,41 @@ test("emoji portrait: import -> consent -> streamed radial portrait -> hover exc
   // clicking an emoji opens its source conversation
   await tiles.first().click();
   await expect(win.locator(".conv-head")).toBeVisible({ timeout: 10_000 });
+
+  await app.close();
+});
+
+test("sensitive memories + conversations blur and lock, then reveal on click", async () => {
+  const freshStore = mkdtempSync(path.join(tmpdir(), "om-store-sensitive-"));
+  const app = await electron.launch({ args: [APP_DIR], env: { ...process.env, OM_STORE_DIR: freshStore } });
+  await app.evaluate(async ({ dialog }, p) => {
+    dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [p] });
+  }, sensitiveZipPath);
+  const win = await app.firstWindow();
+
+  // import the sensitive fixture (therapy + 401k are sensitive; React tuning is not)
+  await win.getByTestId("pick").click();
+  await expect(win.getByText("Conversations uploaded to your memory store")).toBeVisible({ timeout: 30_000 });
+
+  // preview extraction (stub) — this also runs the classify pass that tags conversations
+  await win.getByTestId("to-memories").click();
+  await win.getByTestId("preview").click();
+  await expect(win.getByTestId("fact")).toHaveCount(3, { timeout: 30_000 });
+
+  // two sensitive memory cards render blurred + locked, one stays clear
+  await expect(win.locator(".fact-card .fact-text.locked")).toHaveCount(2);
+  // clicking the lock on a sensitive card reveals it
+  await win.locator(".fact-card .fact-lock").first().click();
+  await expect(win.locator(".fact-card .fact-text.locked")).toHaveCount(1);
+
+  // the sidebar shows the two sensitive conversation titles blurred, each with a lock
+  await expect(win.locator(".om-conv-item .om-lock")).toHaveCount(2);
+  await expect(win.locator(".om-conv-item .om-title.locked")).toHaveCount(2);
+  await win.screenshot({ path: path.join(HERE, "qa-sensitive.png") });
+
+  // clicking a sidebar lock reveals that title without opening the conversation
+  await win.locator(".om-conv-item .om-lock").first().click();
+  await expect(win.locator(".om-conv-item .om-title.locked")).toHaveCount(1);
 
   await app.close();
 });

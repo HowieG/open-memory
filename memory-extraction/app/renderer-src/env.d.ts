@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 export type Msg = { role: string; content: string };
-export type ConvMeta = { id: string; title: string; source: string };
+export type ConvMeta = { id: string; title: string; source: string; sensitive?: boolean };
 export type UploadResult = { source: string; count: number; failed: number; uploaded: ConvMeta[] };
 export type ConvData = { id: string; title?: string; source: string; messages: Msg[] };
 
@@ -13,7 +13,7 @@ export type ProviderInfo = {
   defaultModel: string;
   configHint: string;
 };
-export type Fact = { id: string; text: string; from: string[] };
+export type Fact = { id: string; text: string; from: string[]; category?: string; sensitive?: boolean; date?: number };
 export type MemoriesDoc = {
   facts: Fact[];
   followups: string[];
@@ -23,6 +23,7 @@ export type MemoriesDoc = {
   error?: string;
 };
 export type Eligibility = { eligible: number; excluded: number; total: number };
+export type RateLimitInfo = { attempt: number; waitMs: number };
 
 export type EmojiSignal = { keyword: string; emoji: string; sourceConvId: string; excerpt: string; count?: number };
 export type EmojiProgress = { processed: number; total: number };
@@ -44,8 +45,11 @@ declare global {
       extractMemories(providerId: string, config?: { apiKey?: string; endpoint?: string }, limit?: number): Promise<MemoriesDoc>;
       cancelExtract(): Promise<void>;
       onExtractProgress(cb: (processed: number) => void): () => void;
+      onExtractRateLimit(cb: (info: RateLimitInfo) => void): () => void;
       editFact(id: string, text: string): Promise<MemoriesDoc>;
       forgetFact(id: string): Promise<MemoriesDoc>;
+      clearConversations(): Promise<{ ok: true }>;
+      clearMemories(): Promise<{ ok: true }>;
       startEmojiPortrait(
         providerId: string,
         config?: { apiKey?: string; endpoint?: string },
