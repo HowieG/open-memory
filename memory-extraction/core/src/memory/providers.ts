@@ -1,4 +1,5 @@
 import type { SourceId } from "../schema";
+import { mapKeywordToEmoji } from "./emoji-set";
 
 /**
  * Pluggable memory-extraction providers. Four are built in out of the box —
@@ -95,11 +96,28 @@ const ollama: MemoryProvider = {
   },
 };
 
-/** Deterministic, offline. Pulls the conversation title from the prompt and emits
- *  a fact — so the pipeline produces real-shaped output with no network/key. */
+/** Deterministic, offline. Produces real-shaped output for BOTH extraction modes
+ *  (memory facts and the emoji portrait) with no network/key — so the stub powers
+ *  the e2e and unit tests. Branches on the system prompt's mode. */
 const stub: MemoryProvider = {
   info: { id: "stub", label: "Local (no model)", kind: "local", defaultModel: "deterministic", configHint: "none" },
-  async complete(_system, user) {
+  async complete(system, user) {
+    if (/emoji/i.test(system)) {
+      // Emoji portrait: one signal per conversation block, emoji derived from title.
+      const items: { keyword: string; emoji: string; convId: string; excerpt: string }[] = [];
+      const re = /convId: (\S+)\ntitle: "(.*?)"\nuser said:\n([\s\S]*?)(?=\n\n---\n\n|$)/g;
+      for (let m = re.exec(user); m; m = re.exec(user)) {
+        const [, convId, title, said] = m;
+        const keyword = (title || "this topic").trim().toLowerCase();
+        items.push({
+          keyword,
+          emoji: mapKeywordToEmoji(keyword),
+          convId: convId!,
+          excerpt: (said ?? "").trim().split("\n")[0]!.slice(0, 160),
+        });
+      }
+      return JSON.stringify(items);
+    }
     const title = /title: "(.*?)"/.exec(user)?.[1]?.trim();
     const subject = title || "this conversation";
     return JSON.stringify({ add: [`Discussed: ${subject}`], invalidate: [], followups: [`Want to revisit ${subject}?`] });
