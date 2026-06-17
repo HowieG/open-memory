@@ -13,7 +13,6 @@ const {
   extractMemories,
   consolidateFacts,
   classifyConversations,
-  heuristicTag,
   extractEmojiPortrait,
 } = require("./core.cjs");
 
@@ -28,7 +27,8 @@ const {
 let store; // ConversationStore, created on app ready
 let memoriesPath; // <storeDir>/memories.json — extracted facts
 let portraitPath; // <storeDir>/emoji-portrait.json — cached emoji signals
-let extractAbort = null; // AbortController-like for cancel
+let extractAbort = null; // cooperative cancel flag checked between passes
+let extractAc = null; // AbortController to abort in-flight model requests on cancel
 
 // Hash of the current conversation set — the emoji-portrait cache key. Changes
 // when conversations are added/removed, so a new import re-draws automatically.
@@ -136,45 +136,53 @@ ipcMain.handle("extract-memories", async (event, { providerId, config, limit }) 
   const provider = PROVIDERS[providerId];
   if (!provider) return { error: `unknown provider "${providerId}"` };
   extractAbort = { aborted: false };
+  extractAc = new AbortController();
   try {
-    const cfg = { ...config, onRateLimit: (info) => event.sender.send("extract-rate-limit", info) };
+    const cfg = {
+      ...config,
+      abortSignal: extractAc.signal,
+      onRateLimit: (info) => event.sender.send("extract-rate-limit", info),
+    };
     const result = await extractMemories(store, provider, cfg, {
       limit: typeof limit === "number" ? limit : undefined,
       concurrency: 5,
       signal: extractAbort,
       onProgress: (n) => event.sender.send("extract-progress", n),
     });
-    // Tag conversations as sensitive/bucketed (Haiku for Claude) so the sidebar can
-    // blur+lock them — and so memory categories have a reliable fallback. Best-effort.
-    try {
-      await classifyConversations(store, provider, cfg, { signal: extractAbort });
-    } catch {
-      /* classify is non-essential; ignore */
+    // Per-conversation extraction is done. The classify + consolidate passes are extra
+    // model calls that run after the progress bar fills, so tell the UI we're now
+    // "finalizing" (otherwise it looks stuck at the cap), and skip them on cancel.
+    if (!extractAbort.aborted) {
+      event.sender.send("extract-phase", "finalizing");
+      try {
+        await classifyConversations(store, provider, cfg, { signal: extractAbort });
+      } catch {
+        /* classify is non-essential; ignore */
+      }
     }
-    // Consolidate: merge near-duplicates, prune trivia, assign buckets. Falls back to
-    // the raw facts on failure, so we never lose memories.
     let merged = result.facts;
-    try {
-      merged = await consolidateFacts(result.facts, provider, cfg, { signal: extractAbort });
-    } catch {
-      /* keep raw facts */
+    if (!extractAbort.aborted) {
+      try {
+        merged = await consolidateFacts(result.facts, provider, cfg, { signal: extractAbort });
+      } catch {
+        /* keep raw facts */
+      }
     }
-    // Category + date come from a fallback chain so nothing reads "Other":
-    // model fact category -> source conversation's classified bucket -> keyword
-    // heuristic (which always yields a bucket). Date = newest source conversation.
+    // Category: model fact category -> source conversation's classified bucket. If
+    // neither maps to a known bucket the memory simply stays "Other" — that's fine.
+    // Date = newest source conversation.
     const convMeta = {};
     for (const e of store.list()) convMeta[e.id] = { category: e.category, created_at: e.created_at };
     const facts = merged.map((f, i) => {
       const from = f.from || [];
-      const heur = heuristicTag(f.text);
       const srcCat = from.map((id) => convMeta[id]?.category).find(Boolean);
       const dates = from.map((id) => convMeta[id]?.created_at).filter((n) => typeof n === "number");
       return {
         id: `f${i}`,
         text: f.text,
         from,
-        category: f.category || srcCat || heur.category,
-        sensitive: !!f.sensitive || heur.sensitive,
+        category: f.category || srcCat || undefined,
+        sensitive: !!f.sensitive,
         date: dates.length ? Math.max(...dates) * 1000 : undefined,
       };
     });
@@ -191,11 +199,15 @@ ipcMain.handle("extract-memories", async (event, { providerId, config, limit }) 
     return { error: err.message };
   } finally {
     extractAbort = null;
+    extractAc = null;
   }
 });
 
 ipcMain.handle("cancel-extract", () => {
   if (extractAbort) extractAbort.aborted = true;
+  if (extractAc) {
+    try { extractAc.abort(); } catch { /* already settled */ }
+  }
 });
 
 ipcMain.handle("edit-fact", async (_event, { id, text }) => {

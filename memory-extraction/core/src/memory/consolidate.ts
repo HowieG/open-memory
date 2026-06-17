@@ -1,4 +1,4 @@
-import { type Bucket, type KnowledgeFact, toBucket } from "./extractor";
+import { type Bucket, BUCKET_GUIDE, type KnowledgeFact, toBucket } from "./extractor";
 import type { MemoryProvider, ProviderConfig } from "./providers";
 
 /**
@@ -22,7 +22,9 @@ export const CONSOLIDATE_SYSTEM_PROMPT =
   "You consolidate a user's raw extracted memory facts into a clean, durable set. " +
   "Rules: (1) MERGE duplicates and near-duplicates into one concise fact. (2) DROP trivial, " +
   "ephemeral, or low-signal facts — keep only durable, meaningful things about the user. (3) Assign " +
-  "each surviving fact a category bucket: Body, Work, Places, Taste, People, or Money. (4) Mark " +
+  "each surviving fact the single best-fitting category bucket from: " +
+  BUCKET_GUIDE +
+  ' (use "Other" if none fits). (4) Mark ' +
   "sensitive=true for health, financial, employment, or relationship facts. (5) For each consolidated " +
   "fact, list the source indices (the [N] numbers) it was derived from. Aim for far fewer facts than you " +
   "were given. " +
