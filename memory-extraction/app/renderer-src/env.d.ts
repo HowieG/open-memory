@@ -55,6 +55,7 @@ declare global {
       cancelEmojiPortrait(): Promise<void>;
       onEmojiSignal(cb: (sig: EmojiSignal) => void): () => void;
       onEmojiProgress(cb: (p: EmojiProgress) => void): () => void;
+      onEmojiFinal(cb: (sigs: EmojiSignal[]) => void): () => void;
       sharePortrait(
         rect: { x: number; y: number; width: number; height: number },
         text?: string,

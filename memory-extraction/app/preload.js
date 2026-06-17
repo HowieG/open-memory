@@ -38,5 +38,10 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.on("emoji-progress", handler);
     return () => ipcRenderer.removeListener("emoji-progress", handler);
   },
+  onEmojiFinal: (cb) => {
+    const handler = (_event, sigs) => cb(sigs);
+    ipcRenderer.on("emoji-final", handler);
+    return () => ipcRenderer.removeListener("emoji-final", handler);
+  },
   sharePortrait: (rect, text) => ipcRenderer.invoke("share-portrait", { rect, text }),
 });

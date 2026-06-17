@@ -44,6 +44,9 @@ export interface EmojiPortraitOptions {
   signal?: { aborted: boolean };
   /** called after each conversation is processed (drives the progress bar) */
   onProgress?: (processed: number, total: number) => void;
+  /** called the FIRST time a new emoji theme is seen, so the canvas can fill live
+   *  while processing. The final ranked set (the return value) supersedes these. */
+  onCandidate?: (sig: EmojiSignal) => void;
 }
 
 export const EMOJI_SYSTEM_PROMPT =
@@ -188,6 +191,7 @@ export async function extractEmojiPortrait(
 ): Promise<EmojiSignal[]> {
   const max = opts.max ?? DEFAULT_MAX;
   const candidates: Candidate[] = [];
+  const liveSeen = new Set<string>(); // emojis already shown provisionally
   let processed = 0;
 
   await pool(conversations, opts.concurrency ?? DEFAULT_CONCURRENCY, async (conv) => {
@@ -197,7 +201,15 @@ export async function extractEmojiPortrait(
         ...opts.config,
         maxTokens: opts.config?.maxTokens ?? 400,
       });
-      candidates.push(...parseConvCandidates(raw, conv));
+      const found = parseConvCandidates(raw, conv);
+      candidates.push(...found);
+      // Live fill: pop a real emoji in the moment it's first discovered. ✨ (weak)
+      // signals wait for the final settle so the canvas shows the interesting ones.
+      for (const c of found) {
+        if (c.emoji === FALLBACK_EMOJI || liveSeen.has(c.emoji) || liveSeen.size >= max) continue;
+        liveSeen.add(c.emoji);
+        opts.onCandidate?.({ keyword: c.keyword, emoji: c.emoji, sourceConvId: c.sourceConvId, excerpt: c.excerpt });
+      }
     } catch {
       // a failed conversation just doesn't contribute a vote — never fatal
     } finally {

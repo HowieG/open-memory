@@ -66,10 +66,16 @@ export function PortraitView({
   // processed before the queued emoji-signal events, dropping them. A persistent
   // listener can't lose them.
   useEffect(() => {
-    const unsubSig = api.onEmojiSignal((sig) => setSignals((prev) => [...prev, sig]));
+    // Provisional signals fill the canvas live (dedup by emoji); the final ranked
+    // set replaces them once every conversation has voted.
+    const unsubSig = api.onEmojiSignal((sig) =>
+      setSignals((prev) => (prev.some((s) => s.emoji === sig.emoji) ? prev : [...prev, sig])),
+    );
+    const unsubFinal = api.onEmojiFinal((sigs) => setSignals(sigs));
     const unsubProg = api.onEmojiProgress((p) => setProgress(p));
     return () => {
       unsubSig();
+      unsubFinal();
       unsubProg();
       void api.cancelEmojiPortrait();
     };
@@ -177,7 +183,7 @@ export function PortraitView({
           const { x, y } = radialPos(i);
           return (
             <button
-              key={`${sig.emoji}-${i}`}
+              key={`${sig.emoji}-${sig.keyword}`}
               className="emoji-tile"
               data-testid="emoji-tile"
               style={{ transform: `translate(-50%, -50%) translate(${x}px, ${y}px)` }}

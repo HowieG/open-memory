@@ -191,7 +191,7 @@ ipcMain.handle("start-emoji-portrait", async (event, { providerId, config, max, 
   if (!force) {
     const cached = await loadPortrait();
     if (cached && cached.hash === hash && Array.isArray(cached.signals) && cached.signals.length) {
-      for (const sig of cached.signals) event.sender.send("emoji-signal", sig);
+      event.sender.send("emoji-final", cached.signals); // instant render from cache
       return { count: cached.signals.length, conversations: cached.conversations ?? 0, cached: true };
     }
   }
@@ -208,11 +208,9 @@ ipcMain.handle("start-emoji-portrait", async (event, { providerId, config, max, 
       max: typeof max === "number" ? max : undefined,
       signal: emojiAbort,
       onProgress: (processed, total) => event.sender.send("emoji-progress", { processed, total }),
+      onCandidate: (sig) => event.sender.send("emoji-signal", sig), // live fill while processing
     });
-    for (const sig of signals) {
-      if (emojiAbort?.aborted) break;
-      event.sender.send("emoji-signal", sig);
-    }
+    if (!emojiAbort.aborted) event.sender.send("emoji-final", signals); // settle to the ranked set
     // Cache only a complete, non-cancelled run keyed on this conversation set.
     if (!emojiAbort.aborted && signals.length) {
       await writeFile(
