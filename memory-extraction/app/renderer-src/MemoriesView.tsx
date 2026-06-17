@@ -51,6 +51,7 @@ interface Props {
   onCancel: () => void;
   onEdit: (id: string, text: string) => void;
   onForget: (id: string) => void;
+  onHide: (id: string, sensitive: boolean) => void;
   onProvenance: (convId: string) => void;
   onReset: () => void;
 }
@@ -59,11 +60,13 @@ function FactCard({
   fact,
   onEdit,
   onForget,
+  onHide,
   onProvenance,
 }: {
   fact: Fact;
   onEdit: (id: string, text: string) => void;
   onForget: (id: string) => void;
+  onHide: (id: string, sensitive: boolean) => void;
   onProvenance: (convId: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -113,6 +116,9 @@ function FactCard({
           ) : (
             <>
               <button className="link" data-testid="fact-edit" onClick={() => setEditing(true)}>Edit</button>
+              <button className="link" data-testid="fact-hide" onClick={() => onHide(fact.id, !fact.sensitive)}>
+                {fact.sensitive ? "Unhide" : "Hide"}
+              </button>
               <button className="link danger" data-testid="fact-forget" onClick={() => onForget(fact.id)}>Forget</button>
             </>
           )}
@@ -148,8 +154,11 @@ export function MemoriesView(props: Props) {
   }, [memories]);
 
   if (extracting) {
-    const total = Math.min(eligibility?.eligible ?? 0, limit ?? Infinity);
-    const pct = total ? Math.round((progress / total) * 100) : 0;
+    const eligible = eligibility?.eligible ?? 0; // x — full eligible count
+    const cap = limit ?? eligible; // 25 on Free, all on Premium
+    const capped = limit !== undefined && eligible > limit;
+    const done = Math.min(progress, cap);
+    const pct = eligible ? Math.round((done / eligible) * 100) : 0;
     const finalizing = phase === "finalizing";
     return (
       <div className="memories">
@@ -162,7 +171,12 @@ export function MemoriesView(props: Props) {
         <div className={"progress" + (finalizing ? " indeterminate" : "")}>
           <div className="bar" style={finalizing ? undefined : { width: `${pct}%` }} />
         </div>
-        <div className="status">{finalizing ? "Finalizing…" : `${progress} of ${total} conversations`}</div>
+        <div className="status">{finalizing ? "Finalizing…" : `${done} / ${eligible} conversations`}</div>
+        {capped && !finalizing && (
+          <div className="cap-note" data-testid="cap-note">
+            Free version is capped at {limit} conversations. Sign up for Premium to process all {eligible}.
+          </div>
+        )}
         {rateLimited && (
           <div className="ratelimit" data-testid="ratelimit">
             ⏸ Hit a rate limit — pausing and retrying (waiting {Math.round(rateLimited.waitMs / 1000)}s, attempt {rateLimited.attempt})…
@@ -265,6 +279,7 @@ export function MemoriesView(props: Props) {
                     fact={f}
                     onEdit={props.onEdit}
                     onForget={props.onForget}
+                    onHide={props.onHide}
                     onProvenance={props.onProvenance}
                   />
                 ))}

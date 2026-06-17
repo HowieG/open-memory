@@ -237,6 +237,7 @@ export function App() {
               onCancel={() => api.cancelExtract()}
               onEdit={async (id, text) => setMemories(await api.editFact(id, text))}
               onForget={async (id) => setMemories(await api.forgetFact(id))}
+              onHide={async (id, sensitive) => setMemories(await api.setFactSensitive(id, sensitive))}
               onProvenance={(convId) => selectConv(convId)}
               onReset={() => setMemories(null)}
             />

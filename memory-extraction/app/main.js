@@ -225,6 +225,15 @@ ipcMain.handle("forget-fact", async (_event, id) => {
   return doc;
 });
 
+// Mark a memory as sensitive/hidden (or reveal it) — persists so it stays blurred.
+ipcMain.handle("set-fact-sensitive", async (_event, { id, sensitive }) => {
+  const doc = await loadFacts();
+  const fact = doc.facts.find((f) => f.id === id);
+  if (fact) fact.sensitive = !!sensitive;
+  await saveFacts(doc);
+  return doc;
+});
+
 // --- settings: clear local data ---
 
 ipcMain.handle("clear-conversations", async () => {

@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld("api", {
   },
   editFact: (id, text) => ipcRenderer.invoke("edit-fact", { id, text }),
   forgetFact: (id) => ipcRenderer.invoke("forget-fact", id),
+  setFactSensitive: (id, sensitive) => ipcRenderer.invoke("set-fact-sensitive", { id, sensitive }),
 
   // settings: clear local data
   clearConversations: () => ipcRenderer.invoke("clear-conversations"),

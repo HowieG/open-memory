@@ -49,6 +49,7 @@ declare global {
       onExtractPhase(cb: (phase: string) => void): () => void;
       editFact(id: string, text: string): Promise<MemoriesDoc>;
       forgetFact(id: string): Promise<MemoriesDoc>;
+      setFactSensitive(id: string, sensitive: boolean): Promise<MemoriesDoc>;
       clearConversations(): Promise<{ ok: true }>;
       clearMemories(): Promise<{ ok: true }>;
       startEmojiPortrait(
