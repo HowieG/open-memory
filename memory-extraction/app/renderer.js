@@ -86,10 +86,11 @@ drop.addEventListener("drop", async (e) => {
 });
 
 // ---- Next -> memories screen ----
-function renderFacts() {
+function renderFacts(count) {
+  const from = count ? `your ${count} conversation${count === 1 ? "" : "s"}` : "your conversations";
   $("mem-facts").innerHTML =
     `<h2>Your memories</h2>` +
-    `<div class="note">Placeholder facts — your real memories will be extracted from these conversations.</div>` +
+    `<div class="note">Placeholder facts — your real memories will be extracted from ${from}.</div>` +
     `<ul>${FACTS.map((f) => `<li>${esc(f)}</li>`).join("")}</ul>`;
 }
 
@@ -103,7 +104,7 @@ function showFacts() {
 async function openMemories() {
   const list = await window.api.listConversations();
   $("mem-list").innerHTML = list.map((c) => convItem(c, true)).join("");
-  renderFacts();
+  renderFacts(list.length);
   showFacts();
   show("screen-memories");
 }

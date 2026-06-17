@@ -5,6 +5,7 @@ export { renderConversationsHtml } from "./render";
 export { detectSource, DetectionError } from "./sources/detect";
 export { adapters } from "./sources/registry";
 export { ConversationStore } from "./store";
+export { memoryExtractionSource, memoryEligibility, isEligibleForMemory } from "./memory-source";
 export type {
   CanonicalConversation,
   CanonicalMessage,
