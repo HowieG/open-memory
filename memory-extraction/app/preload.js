@@ -26,8 +26,14 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.on("extract-rate-limit", handler);
     return () => ipcRenderer.removeListener("extract-rate-limit", handler);
   },
+  onExtractPhase: (cb) => {
+    const handler = (_event, phase) => cb(phase);
+    ipcRenderer.on("extract-phase", handler);
+    return () => ipcRenderer.removeListener("extract-phase", handler);
+  },
   editFact: (id, text) => ipcRenderer.invoke("edit-fact", { id, text }),
   forgetFact: (id) => ipcRenderer.invoke("forget-fact", id),
+  setFactSensitive: (id, sensitive) => ipcRenderer.invoke("set-fact-sensitive", { id, sensitive }),
 
   // settings: clear local data
   clearConversations: () => ipcRenderer.invoke("clear-conversations"),

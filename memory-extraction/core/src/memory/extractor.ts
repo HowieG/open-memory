@@ -13,21 +13,44 @@ import type { MemoryProvider, ProviderConfig } from "./providers";
  * state), so cross-conversation consolidation/invalidation is a later pass.
  */
 
-/** The fixed memory buckets — drive the Memories view filter + card labels. */
-export const BUCKETS = ["Body", "Work", "Places", "Taste", "People", "Money"] as const;
+/** The memory buckets — drive the Memories view filter + card labels. Anything
+ *  that doesn't fit one of these stays uncategorized and shows as "Other". */
+export const BUCKETS = [
+  "Body", "Work", "Places", "Taste", "People", "Money",
+  "Identity", "Learning", "Food", "Hobbies", "Media", "Goals", "Home", "Beliefs",
+] as const;
 export type Bucket = (typeof BUCKETS)[number];
 
-/** Common labels a model reaches for, mapped onto our six buckets. */
+/** Human-readable bucket descriptions, shared by every prompt so they stay in sync. */
+export const BUCKET_GUIDE =
+  "Body (health, fitness, medical, mental wellbeing), Work (career, job, business, professional), " +
+  "Places (travel, trips, where they live or go), Taste (style, fashion, design, aesthetics), " +
+  "People (relationships, family, friends, social), Money (personal finance, income, investments, purchases), " +
+  "Identity (core facts about who they are — name, age, location, background), " +
+  "Learning (studying, researching, topics they're curious about), Food (cooking, eating, diet, restaurants), " +
+  "Hobbies (sports, games, crafts, side activities), Media (books, music, film, shows, podcasts they enjoy), " +
+  "Goals (plans, decisions, aspirations, intentions), Home (living situation, pets, household, possessions), " +
+  "Beliefs (values, opinions, politics, worldview)";
+
+/** Common labels a model reaches for, mapped onto the closest bucket. */
 const BUCKET_ALIASES: Record<string, Bucket> = {
   tech: "Work", technology: "Work", coding: "Work", code: "Work", dev: "Work", development: "Work",
   engineering: "Work", software: "Work", programming: "Work", career: "Work", business: "Work",
-  project: "Work", projects: "Work", productivity: "Work", ai: "Work", "ai/ml": "Work", startup: "Work",
-  travel: "Places", location: "Places", home: "Places", geography: "Places", place: "Places",
-  health: "Body", fitness: "Body", wellness: "Body", medical: "Body", body: "Body",
-  food: "Taste", style: "Taste", fashion: "Taste", music: "Taste", art: "Taste", hobby: "Taste",
-  hobbies: "Taste", entertainment: "Taste", preferences: "Taste", lifestyle: "Taste",
-  family: "People", relationship: "People", relationships: "People", social: "People", friends: "People",
-  finance: "Money", financial: "Money", investing: "Money", investment: "Money", budget: "Money",
+  job: "Work", project: "Work", projects: "Work", productivity: "Work", startup: "Work",
+  travel: "Places", location: "Places", geography: "Places", place: "Places",
+  health: "Body", fitness: "Body", wellness: "Body", medical: "Body", exercise: "Body",
+  cooking: "Food", recipe: "Food", recipes: "Food", restaurant: "Food", restaurants: "Food", diet: "Food", eating: "Food",
+  style: "Taste", fashion: "Taste", design: "Taste", aesthetic: "Taste", aesthetics: "Taste",
+  music: "Media", film: "Media", films: "Media", movie: "Media", movies: "Media", book: "Media", books: "Media",
+  tv: "Media", show: "Media", shows: "Media", podcast: "Media", podcasts: "Media", reading: "Media", entertainment: "Media",
+  family: "People", relationship: "People", relationships: "People", social: "People", friends: "People", dating: "People",
+  finance: "Money", financial: "Money", investing: "Money", investment: "Money", budget: "Money", purchases: "Money",
+  hobby: "Hobbies", sport: "Hobbies", sports: "Hobbies", craft: "Hobbies", crafts: "Hobbies", gaming: "Hobbies",
+  learning: "Learning", study: "Learning", studying: "Learning", research: "Learning", education: "Learning", curiosity: "Learning",
+  goal: "Goals", plan: "Goals", plans: "Goals", decision: "Goals", decisions: "Goals", aspiration: "Goals",
+  house: "Home", pet: "Home", pets: "Home", household: "Home", possessions: "Home",
+  belief: "Beliefs", values: "Beliefs", value: "Beliefs", politics: "Beliefs", religion: "Beliefs", opinion: "Beliefs", worldview: "Beliefs",
+  identity: "Identity", bio: "Identity", personal: "Identity", background: "Identity", lifestyle: "Identity",
 };
 
 /** Coerce an arbitrary string to a known bucket (case-insensitive, with aliases). */
@@ -82,10 +105,9 @@ const SYSTEM_PROMPT =
   "one-off questions, generic technical Q&A, or facts about the assistant's answer rather than the user. " +
   "Prefer a few high-signal facts over many trivial ones; emit at most 5, and none if the conversation " +
   "reveals nothing durable about the user. Also propose follow-up questions that would complete their picture. " +
-  "For EACH fact, assign a category bucket — exactly one of: Body (health, fitness, body), " +
-  "Work (career, projects, building, business), Places (travel, where they live/go), " +
-  "Taste (style, food, music, aesthetic preferences), People (relationships, family, friends), " +
-  "Money (personal finance, income, investments). Also mark sensitive=true when the fact concerns " +
+  "For EACH fact, assign the single best-fitting category bucket from: " +
+  BUCKET_GUIDE +
+  '. If none fits well, use "Other". Also mark sensitive=true when the fact concerns ' +
   "health, finances, employment, or relationships. " +
   'Reply with ONLY JSON: {"add": [{"text": string, "category": string, "sensitive": boolean}], "followups": string[]}. ' +
   "Each fact text is one concise sentence about the user. No prose outside the JSON.";

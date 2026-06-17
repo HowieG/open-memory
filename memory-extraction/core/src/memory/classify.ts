@@ -1,5 +1,5 @@
 import type { ConversationStore } from "../store";
-import { type Bucket, toBucket } from "./extractor";
+import { type Bucket, BUCKET_GUIDE, toBucket } from "./extractor";
 import type { MemoryProvider, ProviderConfig } from "./providers";
 
 /**
@@ -18,8 +18,10 @@ export interface ConversationTag {
 
 export const CLASSIFY_SYSTEM_PROMPT =
   "You classify a user's AI chat conversations by their titles. For EACH conversation, decide " +
-  "if it is SENSITIVE — concerning health, finances, employment, or relationships — and assign one " +
-  "category bucket: Body, Work, Places, Taste, People, or Money. " +
+  "if it is SENSITIVE — concerning health, finances, employment, or relationships — and assign the " +
+  "single best-fitting category bucket from: " +
+  BUCKET_GUIDE +
+  '. If none fits well, use "Other". ' +
   'Reply with ONLY a JSON array: [{"id": string, "sensitive": boolean, "category": string}]. ' +
   "Include every id exactly once. No prose outside the JSON.";
 

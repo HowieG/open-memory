@@ -62,6 +62,11 @@ test("upload -> memory store confirmation -> memories page -> render a conversat
   await expect(win.getByTestId("fact")).toHaveCount(2);
   await expect(win.getByTestId("fact-forget").first()).toBeVisible(); // each memory is controllable
 
+  // 3b. hide a memory -> it blurs + locks (mark as sensitive yourself)
+  await expect(win.locator(".fact-card .fact-text.locked")).toHaveCount(0);
+  await win.getByTestId("fact-hide").first().click();
+  await expect(win.locator(".fact-card .fact-text.locked")).toHaveCount(1);
+
   // 4. forget a fact -> it's removed (you hold the keys)
   await win.getByTestId("fact-forget").first().click();
   await expect(win.getByTestId("fact")).toHaveCount(1);
