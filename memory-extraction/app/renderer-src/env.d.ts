@@ -24,6 +24,9 @@ export type MemoriesDoc = {
 };
 export type Eligibility = { eligible: number; excluded: number; total: number };
 
+export type EmojiSignal = { keyword: string; emoji: string; sourceConvId: string; excerpt: string };
+export type EmojiPortraitResult = { count: number; conversations: number } | { error: string };
+
 type Ingest = UploadResult | { canceled: true } | { error: string };
 
 declare global {
@@ -42,6 +45,13 @@ declare global {
       onExtractProgress(cb: (processed: number) => void): () => void;
       editFact(id: string, text: string): Promise<MemoriesDoc>;
       forgetFact(id: string): Promise<MemoriesDoc>;
+      startEmojiPortrait(
+        providerId: string,
+        config?: { apiKey?: string; endpoint?: string },
+        max?: number,
+      ): Promise<EmojiPortraitResult>;
+      cancelEmojiPortrait(): Promise<void>;
+      onEmojiSignal(cb: (sig: EmojiSignal) => void): () => void;
     };
   }
 }

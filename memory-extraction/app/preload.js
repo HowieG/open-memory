@@ -23,4 +23,14 @@ contextBridge.exposeInMainWorld("api", {
   },
   editFact: (id, text) => ipcRenderer.invoke("edit-fact", { id, text }),
   forgetFact: (id) => ipcRenderer.invoke("forget-fact", id),
+
+  // emoji portrait (first-delight) — streaming
+  startEmojiPortrait: (providerId, config, max) =>
+    ipcRenderer.invoke("start-emoji-portrait", { providerId, config, max }),
+  cancelEmojiPortrait: () => ipcRenderer.invoke("cancel-emoji-portrait"),
+  onEmojiSignal: (cb) => {
+    const handler = (_event, sig) => cb(sig);
+    ipcRenderer.on("emoji-signal", handler);
+    return () => ipcRenderer.removeListener("emoji-signal", handler);
+  },
 });
