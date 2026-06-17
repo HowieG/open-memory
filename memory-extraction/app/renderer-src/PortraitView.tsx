@@ -42,6 +42,7 @@ export function PortraitView({
   const [signals, setSignals] = useState<EmojiSignal[]>([]);
   const [active, setActive] = useState<EmojiSignal | null>(null);
   const [convCount, setConvCount] = useState(0);
+  const [progress, setProgress] = useState<{ processed: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const runningRef = useRef(false);
@@ -65,9 +66,11 @@ export function PortraitView({
   // processed before the queued emoji-signal events, dropping them. A persistent
   // listener can't lose them.
   useEffect(() => {
-    const unsub = api.onEmojiSignal((sig) => setSignals((prev) => [...prev, sig]));
+    const unsubSig = api.onEmojiSignal((sig) => setSignals((prev) => [...prev, sig]));
+    const unsubProg = api.onEmojiProgress((p) => setProgress(p));
     return () => {
-      unsub();
+      unsubSig();
+      unsubProg();
       void api.cancelEmojiPortrait();
     };
   }, []);
@@ -82,6 +85,7 @@ export function PortraitView({
     const config = key ? { apiKey: key, model: PORTRAIT_MODEL } : {};
     setPhase("drawing");
     setSignals([]);
+    setProgress(null);
     setError(null);
     try {
       const res = await api.startEmojiPortrait(providerId, config, 20, force);
@@ -142,7 +146,9 @@ export function PortraitView({
   const count = signals.length;
   const countLine =
     phase === "drawing"
-      ? `reading your conversations… ${count} so far`
+      ? progress
+        ? `reading your conversations… ${progress.processed}/${progress.total}`
+        : "reading your conversations…"
       : phase === "error"
         ? `we drew what we could — ${count} ${count === 1 ? "piece" : "pieces"}`
         : `a portrait of you, in ${count} ${count === 1 ? "piece" : "pieces"}` +
@@ -154,6 +160,11 @@ export function PortraitView({
         {countLine}
         {phase === "drawing" && <span className="dots" aria-hidden="true" />}
       </div>
+      {phase === "drawing" && progress && progress.total > 0 && (
+        <div className="portrait-progress" aria-hidden="true">
+          <div className="bar" style={{ width: `${Math.round((progress.processed / progress.total) * 100)}%` }} />
+        </div>
+      )}
 
       <div className="portrait-canvas" ref={canvasRef} role="group" aria-label="Your emoji portrait">
         <div className="portrait-center" aria-hidden="true">

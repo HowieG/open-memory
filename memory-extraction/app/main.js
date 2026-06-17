@@ -200,16 +200,18 @@ ipcMain.handle("start-emoji-portrait", async (event, { providerId, config, max, 
   try {
     const conversations = [];
     for await (const c of memoryExtractionSource(store)) conversations.push(c);
-    const signals = [];
-    for await (const sig of extractEmojiPortrait(conversations, {
+    // Per-conversation parallel extraction → frequency-ranked signals. Progress
+    // streams during the (minutes-long) run; the ranked set arrives at the end.
+    const signals = await extractEmojiPortrait(conversations, {
       provider,
       config,
       max: typeof max === "number" ? max : undefined,
       signal: emojiAbort,
-    })) {
+      onProgress: (processed, total) => event.sender.send("emoji-progress", { processed, total }),
+    });
+    for (const sig of signals) {
       if (emojiAbort?.aborted) break;
       event.sender.send("emoji-signal", sig);
-      signals.push(sig);
     }
     // Cache only a complete, non-cancelled run keyed on this conversation set.
     if (!emojiAbort.aborted && signals.length) {

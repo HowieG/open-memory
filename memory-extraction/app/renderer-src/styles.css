@@ -118,6 +118,8 @@ button.link.danger:hover { color: #b00020; }
 .portrait-count .dots::after { content: "…"; animation: om-dots 1.2s steps(4, end) infinite; }
 @keyframes om-dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
 
+.portrait-progress { width: min(420px, 70%); height: 6px; background: #fff; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; margin: 6px 0 2px; }
+.portrait-progress .bar { height: 100%; background: var(--ink); transition: width .3s; }
 .portrait-canvas { position: relative; flex: 1; width: 100%; min-height: 0; }
 .portrait-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; }
 .wordmark { font-family: var(--font-display); font-size: 30px; color: var(--muted); letter-spacing: -0.01em; }

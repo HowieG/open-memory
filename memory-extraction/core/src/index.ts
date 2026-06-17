@@ -12,9 +12,9 @@ export { extractMemories, parseExtraction } from "./memory/extractor";
 export type { KnowledgeFact, ExtractionResult, ExtractOptions } from "./memory/extractor";
 export {
   extractEmojiPortrait,
-  chunkConversations,
   buildEmojiUserPrompt,
-  parseEmojiItems,
+  parseConvCandidates,
+  rankSignals,
   EMOJI_SYSTEM_PROMPT,
 } from "./memory/emoji-portrait";
 export type { EmojiSignal, EmojiPortraitOptions } from "./memory/emoji-portrait";
