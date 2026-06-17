@@ -34,6 +34,8 @@ export interface ProviderConfig {
   endpoint?: string;
   /** cap on output tokens (the consolidation pass needs a larger budget) */
   maxTokens?: number;
+  /** aborts in-flight requests promptly when the user cancels */
+  abortSignal?: AbortSignal;
   /** called before each rate-limit backoff so the UI can communicate the pause */
   onRateLimit?: (info: RateLimitInfo) => void;
 }
@@ -74,9 +76,10 @@ function postJson(
   headers: Record<string, string>,
   body: unknown,
   onRateLimit?: (info: RateLimitInfo) => void,
+  signal?: AbortSignal,
 ): Promise<unknown> {
   return requestWithRetry(
-    () => fetch(url, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body) }),
+    () => fetch(url, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body), signal }),
     onRateLimit,
   );
 }
@@ -91,6 +94,7 @@ const claude: MemoryProvider = {
       { "x-api-key": key, "anthropic-version": "2023-06-01" },
       { model: cfg.model ?? this.info.defaultModel, max_tokens: cfg.maxTokens ?? 1024, system, messages: [{ role: "user", content: user }] },
       cfg.onRateLimit,
+      cfg.abortSignal,
     )) as { content?: { text?: string }[] };
     return j.content?.[0]?.text ?? "";
   },
@@ -106,6 +110,7 @@ const openai: MemoryProvider = {
       { authorization: `Bearer ${key}` },
       { model: cfg.model ?? this.info.defaultModel, messages: [{ role: "system", content: system }, { role: "user", content: user }], ...(cfg.maxTokens ? { max_tokens: cfg.maxTokens } : {}) },
       cfg.onRateLimit,
+      cfg.abortSignal,
     )) as { choices?: { message?: { content?: string } }[] };
     return j.choices?.[0]?.message?.content ?? "";
   },
@@ -122,6 +127,7 @@ const gemini: MemoryProvider = {
       {},
       { systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: user }] }], ...(cfg.maxTokens ? { generationConfig: { maxOutputTokens: cfg.maxTokens } } : {}) },
       cfg.onRateLimit,
+      cfg.abortSignal,
     )) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
     return j.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
   },
@@ -136,6 +142,7 @@ const ollama: MemoryProvider = {
       {},
       { model: cfg.model ?? this.info.defaultModel, stream: false, messages: [{ role: "system", content: system }, { role: "user", content: user }], ...(cfg.maxTokens ? { options: { num_predict: cfg.maxTokens } } : {}) },
       cfg.onRateLimit,
+      cfg.abortSignal,
     )) as { message?: { content?: string } };
     return j.message?.content ?? "";
   },

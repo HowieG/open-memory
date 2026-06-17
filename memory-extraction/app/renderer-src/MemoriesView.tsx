@@ -1,16 +1,27 @@
 import { useMemo, useState } from "react";
 import type { Eligibility, Fact, MemoriesDoc, ProviderInfo, RateLimitInfo } from "./env";
 
-/** The fixed buckets (mirror of core's BUCKETS) and their paper-palette accents. */
-const BUCKETS = ["Body", "Work", "Places", "Taste", "People", "Money"] as const;
+/** The buckets (mirror of core's BUCKETS) and their paper-palette accents. */
+const BUCKETS = [
+  "Body", "Work", "Places", "Taste", "People", "Money",
+  "Identity", "Learning", "Food", "Hobbies", "Media", "Goals", "Home", "Beliefs",
+] as const;
 type Bucket = (typeof BUCKETS)[number];
 const BUCKET_COLORS: Record<Bucket, string> = {
   Body: "#d97757",
-  Work: "#7c6cf0",
+  Work: "#6c6cf0",
   Places: "#3fae7a",
   Taste: "#d86c9e",
-  People: "#5b8def",
+  People: "#4f9cf0",
   Money: "#b08a2e",
+  Identity: "#c0508a",
+  Learning: "#2fa0a0",
+  Food: "#e0883c",
+  Hobbies: "#7aa53f",
+  Media: "#9b6cd0",
+  Goals: "#d2595b",
+  Home: "#6f8fb0",
+  Beliefs: "#a07c50",
 };
 const asBucket = (v?: string): Bucket | null => (v && (BUCKETS as readonly string[]).includes(v) ? (v as Bucket) : null);
 
@@ -32,6 +43,7 @@ interface Props {
   memories: MemoriesDoc | null;
   extracting: boolean;
   progress: number;
+  phase: string | null;
   rateLimited: RateLimitInfo | null;
   error: string | null;
   onExtract: (providerId: string, config: { apiKey?: string; endpoint?: string }, limit?: number) => void;
@@ -113,12 +125,12 @@ function FactCard({
 const FREE_LIMIT = 25;
 
 export function MemoriesView(props: Props) {
-  const { eligibility, providers, memories, extracting, progress, rateLimited, error } = props;
+  const { eligibility, providers, memories, extracting, progress, phase, rateLimited, error } = props;
   const [providerId, setProviderId] = useState(providers[0]?.id ?? "");
   const [apiKey, setApiKey] = useState("");
   const [endpoint, setEndpoint] = useState("http://localhost:11434");
   const [tier, setTier] = useState<"free" | "premium">("free");
-  const [filter, setFilter] = useState<"All" | Bucket>("All");
+  const [filter, setFilter] = useState<"All" | Bucket | "Other">("All");
   const [threadsShown, setThreadsShown] = useState(THREADS_PAGE);
   const limit = tier === "free" ? FREE_LIMIT : undefined;
 
@@ -129,21 +141,28 @@ export function MemoriesView(props: Props) {
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
     for (const f of memories?.facts ?? []) {
-      const b = asBucket(f.category);
-      if (b) c[b] = (c[b] ?? 0) + 1;
+      const key = asBucket(f.category) ?? "Other";
+      c[key] = (c[key] ?? 0) + 1;
     }
     return c;
   }, [memories]);
 
   if (extracting) {
-    const total = eligibility?.eligible ?? 0;
+    const total = Math.min(eligibility?.eligible ?? 0, limit ?? Infinity);
     const pct = total ? Math.round((progress / total) * 100) : 0;
+    const finalizing = phase === "finalizing";
     return (
       <div className="memories">
-        <h2>Extracting your memories…</h2>
-        <div className="note">Reading your conversations and building a picture of you.</div>
-        <div className="progress"><div className="bar" style={{ width: `${pct}%` }} /></div>
-        <div className="status">{progress} of {total} conversations</div>
+        <h2>{finalizing ? "Organizing your memories…" : "Extracting your memories…"}</h2>
+        <div className="note">
+          {finalizing
+            ? "Sorting into categories and merging duplicates — almost done."
+            : "Reading your conversations and building a picture of you."}
+        </div>
+        <div className={"progress" + (finalizing ? " indeterminate" : "")}>
+          <div className="bar" style={finalizing ? undefined : { width: `${pct}%` }} />
+        </div>
+        <div className="status">{finalizing ? "Finalizing…" : `${progress} of ${total} conversations`}</div>
         {rateLimited && (
           <div className="ratelimit" data-testid="ratelimit">
             ⏸ Hit a rate limit — pausing and retrying (waiting {Math.round(rateLimited.waitMs / 1000)}s, attempt {rateLimited.attempt})…
@@ -157,7 +176,12 @@ export function MemoriesView(props: Props) {
   if (hasFacts) {
     const facts = memories!.facts;
     const extractedMs = (memories!.extractedAt && Date.parse(memories!.extractedAt)) || Date.now();
-    const shown = filter === "All" ? facts : facts.filter((f) => asBucket(f.category) === filter);
+    const shown =
+      filter === "All"
+        ? facts
+        : filter === "Other"
+          ? facts.filter((f) => !asBucket(f.category))
+          : facts.filter((f) => asBucket(f.category) === filter);
 
     // Group the visible memories by the day of their newest source conversation.
     const byDay = new Map<string, { ms: number; facts: Fact[] }>();
@@ -213,20 +237,21 @@ export function MemoriesView(props: Props) {
           <button className={"chip" + (filter === "All" ? " on" : "")} onClick={() => setFilter("All")}>
             All <span className="chip-n">{facts.length}</span>
           </button>
-          {BUCKETS.map((b) => {
-            const n = counts[b] ?? 0;
-            return (
-              <button
-                key={b}
-                className={"chip" + (filter === b ? " on" : "") + (n === 0 ? " empty" : "")}
-                style={filter === b ? { background: BUCKET_COLORS[b], borderColor: BUCKET_COLORS[b], color: "#fff" } : { color: BUCKET_COLORS[b] }}
-                disabled={n === 0}
-                onClick={() => setFilter(b)}
-              >
-                {b} <span className="chip-n">{n}</span>
-              </button>
-            );
-          })}
+          {BUCKETS.filter((b) => (counts[b] ?? 0) > 0).map((b) => (
+            <button
+              key={b}
+              className={"chip" + (filter === b ? " on" : "")}
+              style={filter === b ? { background: BUCKET_COLORS[b], borderColor: BUCKET_COLORS[b], color: "#fff" } : { color: BUCKET_COLORS[b] }}
+              onClick={() => setFilter(b)}
+            >
+              {b} <span className="chip-n">{counts[b]}</span>
+            </button>
+          ))}
+          {(counts.Other ?? 0) > 0 && (
+            <button className={"chip" + (filter === "Other" ? " on" : "")} onClick={() => setFilter("Other")}>
+              Other <span className="chip-n">{counts.Other}</span>
+            </button>
+          )}
         </div>
 
         <div data-testid="facts">

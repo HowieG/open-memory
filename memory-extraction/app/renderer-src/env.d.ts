@@ -45,6 +45,7 @@ declare global {
       cancelExtract(): Promise<void>;
       onExtractProgress(cb: (processed: number) => void): () => void;
       onExtractRateLimit(cb: (info: RateLimitInfo) => void): () => void;
+      onExtractPhase(cb: (phase: string) => void): () => void;
       editFact(id: string, text: string): Promise<MemoriesDoc>;
       forgetFact(id: string): Promise<MemoriesDoc>;
       clearConversations(): Promise<{ ok: true }>;

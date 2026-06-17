@@ -59,6 +59,7 @@ export function App() {
   const [progress, setProgress] = useState(0);
   const [extractError, setExtractError] = useState<string | null>(null);
   const [rateLimited, setRateLimited] = useState<RateLimitInfo | null>(null);
+  const [phase, setPhase] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<UploadResult | null>(null);
   const [status, setStatus] = useState("");
   const [hot, setHot] = useState(false);
@@ -130,15 +131,19 @@ export function App() {
     setProgress(0);
     setExtractError(null);
     setRateLimited(null);
+    setPhase(null);
     const unsubP = api.onExtractProgress((n) => {
       setProgress(n);
       setRateLimited(null); // a completed conversation means we're moving again
     });
     const unsubR = api.onExtractRateLimit(setRateLimited);
+    const unsubF = api.onExtractPhase(setPhase);
     const doc = await api.extractMemories(providerId, config, limit);
     unsubP();
     unsubR();
+    unsubF();
     setRateLimited(null);
+    setPhase(null);
     setExtracting(false);
     if (doc.error) setExtractError(doc.error);
     else {
@@ -224,6 +229,7 @@ export function App() {
               memories={memories}
               extracting={extracting}
               progress={progress}
+              phase={phase}
               rateLimited={rateLimited}
               error={extractError}
               onExtract={runExtract}
