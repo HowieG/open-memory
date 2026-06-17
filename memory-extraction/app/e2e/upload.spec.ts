@@ -17,6 +17,7 @@ const APP_DIR = path.resolve(HERE, "..");
 const SAMPLE_DIR = path.join(HERE, "sample");
 
 let zipPath: string;
+let storeDir: string;
 
 test.beforeAll(() => {
   const tmp = mkdtempSync(path.join(tmpdir(), "om-e2e-"));
@@ -24,10 +25,12 @@ test.beforeAll(() => {
   execSync(
     `zip -j -q "${zipPath}" "${path.join(SAMPLE_DIR, "conversations.json")}" "${path.join(SAMPLE_DIR, "users.json")}"`,
   );
+  // Isolated, empty store per run so the sidebar count is deterministic.
+  storeDir = mkdtempSync(path.join(tmpdir(), "om-store-"));
 });
 
 test("upload -> memory store confirmation -> memories page -> render a conversation", async () => {
-  const app = await electron.launch({ args: [APP_DIR] });
+  const app = await electron.launch({ args: [APP_DIR], env: { ...process.env, OM_STORE_DIR: storeDir } });
   await app.evaluate(async ({ dialog }, p) => {
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [p] });
   }, zipPath);
