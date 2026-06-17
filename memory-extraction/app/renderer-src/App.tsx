@@ -1,15 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ConversationView } from "./ConversationView";
-import type { ConvData, ConvMeta, UploadResult } from "./env";
-
-const FACTS = [
-  "Based in San Francisco.",
-  "Runs an AI strategy & implementation consulting practice.",
-  "Building open-memory — user-controlled memory you carry between AI apps.",
-  "Prefers a near-monochrome design with restrained accents.",
-  "Recently working through ChatGPT and Claude data-export ingestion.",
-  "Leans on tests and self-checking infrastructure before shipping.",
-];
+import { MemoriesView } from "./MemoriesView";
+import type { ConvData, ConvMeta, Eligibility, MemoriesDoc, ProviderInfo, UploadResult } from "./env";
 
 // Real brand logos dropped into ./logos/ (openai|claude|gemini . svg|png) render
 // instead of the inline approximations below. Missing ones fall back gracefully.
@@ -22,9 +14,7 @@ const BRAND: Record<string, string> = { chatgpt: "openai", claude: "claude", gem
 function providedLogo(source: string): string | undefined {
   const brand = BRAND[source];
   if (!brand) return undefined;
-  const hit = Object.entries(PROVIDED).find(
-    ([p]) => p.split("/").pop()!.replace(/\.(svg|png)$/i, "") === brand,
-  );
+  const hit = Object.entries(PROVIDED).find(([p]) => p.split("/").pop()!.replace(/\.(svg|png)$/i, "") === brand);
   return hit?.[1];
 }
 
@@ -40,21 +30,13 @@ function Logo({ source }: { source: string }) {
   }
   if (source === "claude") {
     const rays: Array<[number, number, number, number]> = [
-      [16, 12, 21, 12],
-      [14.83, 14.83, 18.36, 18.36],
-      [12, 16, 12, 21],
-      [9.17, 14.83, 5.64, 18.36],
-      [8, 12, 3, 12],
-      [9.17, 9.17, 5.64, 5.64],
-      [12, 8, 12, 3],
-      [14.83, 9.17, 18.36, 5.64],
+      [16, 12, 21, 12], [14.83, 14.83, 18.36, 18.36], [12, 16, 12, 21], [9.17, 14.83, 5.64, 18.36],
+      [8, 12, 3, 12], [9.17, 9.17, 5.64, 5.64], [12, 8, 12, 3], [14.83, 9.17, 18.36, 5.64],
     ];
     return (
       <svg viewBox="0 0 24 24" width="16" height="16" aria-label="Claude">
         <g stroke="#D97757" strokeWidth="2.2" strokeLinecap="round">
-          {rays.map(([x1, y1, x2, y2], i) => (
-            <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} />
-          ))}
+          {rays.map(([x1, y1, x2, y2], i) => <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} />)}
         </g>
       </svg>
     );
@@ -62,49 +44,58 @@ function Logo({ source }: { source: string }) {
   return <span className="om-dot">•</span>;
 }
 
-function ConvRow({ c, onClick, active }: { c: ConvMeta; onClick?: () => void; active?: boolean }) {
-  return (
-    <div
-      className={"om-conv-item" + (active ? " active" : "")}
-      data-testid="conv-item"
-      data-source={c.source}
-      onClick={onClick}
-    >
-      <span className="om-logo" title={c.source}>
-        <Logo source={c.source} />
-      </span>
-      <span className="om-title">{c.title}</span>
-    </div>
-  );
-}
+type View = "memories" | "conversations" | "import";
 
 export function App() {
   const api = window.api;
-  const [screen, setScreen] = useState<"upload" | "uploaded" | "memories">("upload");
-  const [result, setResult] = useState<UploadResult | null>(null);
-  const [list, setList] = useState<ConvMeta[]>([]);
+  const [view, setView] = useState<View>("import");
+  const [conversations, setConversations] = useState<ConvMeta[]>([]);
   const [selected, setSelected] = useState<ConvData | null>(null);
+  const [memories, setMemories] = useState<MemoriesDoc | null>(null);
+  const [eligibility, setEligibility] = useState<Eligibility | null>(null);
+  const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [extracting, setExtracting] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [extractError, setExtractError] = useState<string | null>(null);
+  const [importResult, setImportResult] = useState<UploadResult | null>(null);
   const [status, setStatus] = useState("");
   const [hot, setHot] = useState(false);
-  const [resumeCount, setResumeCount] = useState(0);
+  const didInit = useRef(false);
+
+  async function refresh() {
+    const [convs, mem, elig, provs] = await Promise.all([
+      api.listConversations(),
+      api.getMemories(),
+      api.memoryEligibility(),
+      api.listProviders(),
+    ]);
+    setConversations(convs);
+    setMemories(mem);
+    setEligibility(elig);
+    setProviders(provs);
+    return convs;
+  }
 
   useEffect(() => {
-    api.listConversations().then((l) => setResumeCount(l.length));
+    if (didInit.current) return;
+    didInit.current = true;
+    refresh().then((convs) => {
+      if (convs.length > 0) setView("memories");
+    });
   }, []);
 
+  // ---- import ----
   function handleIngest(r: Awaited<ReturnType<typeof api.pickAndIngest>>) {
     if ("canceled" in r) return setStatus("");
     if ("error" in r) return setStatus("Error: " + r.error);
-    setResult(r);
     setStatus("");
-    setScreen("uploaded");
+    setImportResult(r);
+    refresh();
   }
-
   async function doPick() {
     setStatus("Reading…");
     handleIngest(await api.pickAndIngest());
   }
-
   async function doDrop(e: React.DragEvent) {
     e.preventDefault();
     setHot(false);
@@ -114,17 +105,33 @@ export function App() {
     handleIngest(await api.ingestPath(api.pathForFile(file)));
   }
 
-  async function openMemories() {
-    const l = await api.listConversations();
-    setList(l);
-    setSelected(null);
-    setScreen("memories");
-  }
-
+  // ---- conversations ----
   async function selectConv(id: string) {
     const c = await api.getConversationData(id);
-    if (!("error" in c)) setSelected(c);
+    if (!("error" in c)) {
+      setSelected(c);
+      setView("conversations");
+    }
   }
+
+  // ---- memories ----
+  async function runExtract(providerId: string, config: { apiKey?: string; endpoint?: string }) {
+    setExtracting(true);
+    setProgress(0);
+    setExtractError(null);
+    const unsub = api.onExtractProgress(setProgress);
+    const doc = await api.extractMemories(providerId, config);
+    unsub();
+    setExtracting(false);
+    if (doc.error) setExtractError(doc.error);
+    else setMemories(doc);
+  }
+
+  const navBtn = (v: View, label: string) => (
+    <button className={"nav-item" + (view === v ? " active" : "")} data-testid={`nav-${v}`} onClick={() => setView(v)}>
+      {label}
+    </button>
+  );
 
   return (
     <div className="om-app">
@@ -133,104 +140,89 @@ export function App() {
         <span className="sub">everything stays on your machine</span>
       </header>
 
-      {screen === "upload" && (
-        <section className="screen upload">
-          <div
-            className={"drop" + (hot ? " hot" : "")}
-            data-testid="drop"
-            onDragOver={(e) => {
-              e.preventDefault();
-              setHot(true);
-            }}
-            onDragLeave={() => setHot(false)}
-            onDrop={doDrop}
-          >
-            <div>
-              Drop a <strong>ChatGPT</strong> or <strong>Claude</strong> export <code>.zip</code> here
-            </div>
-            <div className="or">or</div>
-            <button data-testid="pick" onClick={doPick}>
-              Choose file
-            </button>
-            <div className={"status" + (status.startsWith("Error") ? " err" : "")}>{status}</div>
-            {resumeCount > 0 && (
-              <div className="resume">
-                <button onClick={openMemories}>
-                  View your {resumeCount} stored conversation{resumeCount === 1 ? "" : "s"} →
-                </button>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {screen === "uploaded" && result && (
-        <section className="screen uploaded">
-          <div className="checkline">
-            <span className="check">✓</span>
-            <h2>Conversations uploaded to your memory store</h2>
-          </div>
-          <div className="status">
-            {result.count} conversation{result.count === 1 ? "" : "s"} from {result.source}
-            {result.failed ? ` · ${result.failed} skipped` : ""}
-          </div>
-          <div className="titlelist" data-testid="uploaded-list">
-            {result.uploaded.map((c) => (
-              <ConvRow key={c.id} c={c} />
+      <div className="body">
+        <aside className="sidebar">
+          <nav className="nav">
+            {navBtn("memories", "Memories")}
+            {navBtn("conversations", "Conversations")}
+            {navBtn("import", "Import")}
+          </nav>
+          <div className="side-head">Conversations</div>
+          <div className="conv-list">
+            {conversations.map((c) => (
+              <button
+                key={c.id}
+                className={"om-conv-item" + (selected?.id === c.id ? " active" : "")}
+                data-testid="conv-item"
+                data-source={c.source}
+                onClick={() => selectConv(c.id)}
+              >
+                <span className="om-logo" title={c.source}><Logo source={c.source} /></span>
+                <span className="om-title">{c.title}</span>
+              </button>
             ))}
           </div>
-          <button data-testid="next" onClick={openMemories}>
-            Next →
-          </button>
-        </section>
-      )}
+        </aside>
 
-      {screen === "memories" && (
-        <section className="screen memories">
-          <aside className="sidebar">
-            <div className="side-head">Conversations</div>
-            <div data-testid="mem-list">
-              {list.map((c) => (
-                <ConvRow
-                  key={c.id}
-                  c={c}
-                  active={selected?.id === c.id}
-                  onClick={() => selectConv(c.id)}
-                />
-              ))}
-            </div>
-          </aside>
-          <div className="main">
-            {selected ? (
-              <>
-                <div className="backbar">
-                  <button onClick={() => setSelected(null)}>← Your memories</button>
-                </div>
+        <main className="main">
+          {view === "memories" && (
+            <MemoriesView
+              eligibility={eligibility}
+              providers={providers}
+              memories={memories}
+              extracting={extracting}
+              progress={progress}
+              error={extractError}
+              onExtract={runExtract}
+              onPreview={() => runExtract("stub", {})}
+              onCancel={() => api.cancelExtract()}
+              onEdit={async (id, text) => setMemories(await api.editFact(id, text))}
+              onForget={async (id) => setMemories(await api.forgetFact(id))}
+              onProvenance={(convId) => selectConv(convId)}
+              onReset={() => setMemories(null)}
+            />
+          )}
+
+          {view === "conversations" &&
+            (selected ? (
+              <div className="conv-pane">
                 <div className="conv-head">
                   <h2>{selected.title || "(untitled)"}</h2>
-                  <div className="meta">
-                    {selected.source} · {selected.messages.length} msgs
-                  </div>
+                  <div className="meta">{selected.source} · {selected.messages.length} msgs</div>
                 </div>
                 <ConversationView messages={selected.messages} />
-              </>
-            ) : (
-              <div className="facts" data-testid="facts">
-                <h2>Your memories</h2>
-                <div className="note">
-                  Placeholder facts — your real memories will be extracted from your {list.length}{" "}
-                  conversation{list.length === 1 ? "" : "s"}.
-                </div>
-                <ul>
-                  {FACTS.map((f) => (
-                    <li key={f}>{f}</li>
-                  ))}
-                </ul>
               </div>
-            )}
-          </div>
-        </section>
-      )}
+            ) : (
+              <div className="facts"><div className="note">Pick a conversation from the sidebar to read it.</div></div>
+            ))}
+
+          {view === "import" && (
+            <div className="import">
+              {importResult ? (
+                <>
+                  <div className="checkline"><span className="check">✓</span><h2>Conversations uploaded to your memory store</h2></div>
+                  <div className="status">{importResult.count} from {importResult.source}{importResult.failed ? ` · ${importResult.failed} skipped` : ""}</div>
+                  <button data-testid="to-memories" onClick={() => setView("memories")}>See your memories →</button>
+                  <button className="secondary" onClick={() => setImportResult(null)}>Import another</button>
+                </>
+              ) : (
+                <div
+                  className={"drop" + (hot ? " hot" : "")}
+                  data-testid="drop"
+                  onDragOver={(e) => { e.preventDefault(); setHot(true); }}
+                  onDragLeave={() => setHot(false)}
+                  onDrop={doDrop}
+                >
+                  <div>Drop a <strong>ChatGPT</strong> or <strong>Claude</strong> export <code>.zip</code> here</div>
+                  <div className="or">or</div>
+                  <button data-testid="pick" onClick={doPick}>Choose file</button>
+                  <div className={"status" + (status.startsWith("Error") ? " err" : "")}>{status}</div>
+                </div>
+              )}
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
