@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>open-memory · import</title>
+    <style>
+      :root { --ink: #16171A; --paper: #EDEBE4; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font: 15px/1.5 -apple-system, system-ui, sans-serif; color: var(--ink); background: var(--paper); display: flex; flex-direction: column; height: 100vh; }
+      header { padding: 18px 24px 8px; }
+      header h1 { margin: 0; font-size: 20px; }
+      header p { margin: 2px 0 0; color: #777; font-size: 13px; }
+      #drop { margin: 14px 24px; padding: 26px; border: 2px dashed #bbb; border-radius: 14px; text-align: center; color: #555; background: #fff; transition: all .12s; }
+      #drop.hot { border-color: var(--ink); background: #fafafa; }
+      #pick { font: inherit; background: var(--ink); color: var(--paper); border: 0; border-radius: 10px; padding: 8px 16px; cursor: pointer; }
+      #status { padding: 0 24px 8px; font: 12px ui-monospace, monospace; min-height: 18px; }
+      #status.err { color: #b00020; }
+      #status.ok { color: #2a7; }
+      #view { flex: 1; border: 0; width: 100%; background: var(--paper); }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>open-memory · import</h1>
+      <p>Everything stays on your machine. Nothing is uploaded.</p>
+    </header>
+    <div id="drop">
+      Drop a <strong>ChatGPT</strong> or <strong>Claude</strong> export <code>.zip</code> here, or
+      <button id="pick">Choose file</button>
+    </div>
+    <div id="status"></div>
+    <iframe id="view"></iframe>
+    <script src="renderer.js"></script>
+  </body>
+</html>
