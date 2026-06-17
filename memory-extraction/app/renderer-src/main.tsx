@@ -1,5 +1,8 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
+import "@fontsource-variable/fraunces";
+import "@fontsource/geist-sans/index.css";
+import "@fontsource/geist-mono/index.css";
 import { App } from "./App";
 import "./styles.css";
 
