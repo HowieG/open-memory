@@ -9,7 +9,7 @@ export { memoryExtractionSource, memoryEligibility, isEligibleForMemory } from "
 export { PROVIDERS, rankProviders } from "./memory/providers";
 export type { ProviderId, ProviderInfo, ProviderConfig, MemoryProvider } from "./memory/providers";
 export { extractMemories, parseExtraction } from "./memory/extractor";
-export type { KnowledgeFact, ExtractionResult } from "./memory/extractor";
+export type { KnowledgeFact, ExtractionResult, ExtractOptions } from "./memory/extractor";
 export type {
   CanonicalConversation,
   CanonicalMessage,

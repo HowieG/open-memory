@@ -9,4 +9,18 @@ contextBridge.exposeInMainWorld("api", {
   getConversationData: (id) => ipcRenderer.invoke("get-conversation-data", id),
   // Electron removed File.path; this is the supported way to get a dropped file's path.
   pathForFile: (file) => webUtils.getPathForFile(file),
+
+  // memory extraction
+  memoryEligibility: () => ipcRenderer.invoke("memory-eligibility"),
+  listProviders: () => ipcRenderer.invoke("list-providers"),
+  getMemories: () => ipcRenderer.invoke("get-memories"),
+  extractMemories: (providerId, config) => ipcRenderer.invoke("extract-memories", { providerId, config }),
+  cancelExtract: () => ipcRenderer.invoke("cancel-extract"),
+  onExtractProgress: (cb) => {
+    const handler = (_event, n) => cb(n);
+    ipcRenderer.on("extract-progress", handler);
+    return () => ipcRenderer.removeListener("extract-progress", handler);
+  },
+  editFact: (id, text) => ipcRenderer.invoke("edit-fact", { id, text }),
+  forgetFact: (id) => ipcRenderer.invoke("forget-fact", id),
 });
