@@ -11,7 +11,26 @@ const FACTS = [
   "Leans on tests and self-checking infrastructure before shipping.",
 ];
 
+// Real brand logos dropped into ./logos/ (openai|claude|gemini . svg|png) render
+// instead of the inline approximations below. Missing ones fall back gracefully.
+const PROVIDED = import.meta.glob("./logos/*.{svg,png}", {
+  eager: true,
+  query: "?url",
+  import: "default",
+}) as Record<string, string>;
+const BRAND: Record<string, string> = { chatgpt: "openai", claude: "claude", gemini: "gemini" };
+function providedLogo(source: string): string | undefined {
+  const brand = BRAND[source];
+  if (!brand) return undefined;
+  const hit = Object.entries(PROVIDED).find(
+    ([p]) => p.split("/").pop()!.replace(/\.(svg|png)$/i, "") === brand,
+  );
+  return hit?.[1];
+}
+
 function Logo({ source }: { source: string }) {
+  const provided = providedLogo(source);
+  if (provided) return <img className="om-logo-img" src={provided} alt={source} width={16} height={16} />;
   if (source === "chatgpt") {
     return (
       <svg viewBox="0 0 24 24" width="16" height="16" fill="#000" aria-label="OpenAI">
