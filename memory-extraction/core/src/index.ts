@@ -6,6 +6,10 @@ export { detectSource, DetectionError } from "./sources/detect";
 export { adapters } from "./sources/registry";
 export { ConversationStore } from "./store";
 export { memoryExtractionSource, memoryEligibility, isEligibleForMemory } from "./memory-source";
+export { PROVIDERS, rankProviders } from "./memory/providers";
+export type { ProviderId, ProviderInfo, ProviderConfig, MemoryProvider } from "./memory/providers";
+export { extractMemories, parseExtraction } from "./memory/extractor";
+export type { KnowledgeFact, ExtractionResult } from "./memory/extractor";
 export type {
   CanonicalConversation,
   CanonicalMessage,
