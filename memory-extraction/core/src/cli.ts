@@ -4,11 +4,13 @@ import { fileURLToPath } from "node:url";
 import { dirReader } from "./dir";
 import { renderConversationsHtml } from "./render";
 import { chatgptAdapter } from "./sources/chatgpt/adapter";
+import { claudeAdapter } from "./sources/claude/adapter";
 import type { SourceAdapter } from "./sources/types";
 import { subset } from "./subset";
 
 const ADAPTERS: Record<string, SourceAdapter> = {
   chatgpt: chatgptAdapter,
+  claude: claudeAdapter,
 };
 
 /**
