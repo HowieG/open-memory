@@ -55,4 +55,19 @@ describe("extractMemories (stub provider, end-to-end)", () => {
     expect(result.followups.length).toBe(2);
     expect(JSON.stringify(result)).not.toContain("Private thing");
   });
+
+  it("reports progress and honors cancellation", async () => {
+    const store = new ConversationStore(mkdtempSync(path.join(tmpdir(), "om-ext-")));
+    await store.init();
+    await store.upsert([conv("a", 1, "A"), conv("b", 2, "B"), conv("c", 3, "C")]);
+
+    const progress: number[] = [];
+    const full = await extractMemories(store, PROVIDERS.stub, undefined, { onProgress: (n) => progress.push(n) });
+    expect(progress).toEqual([1, 2, 3]);
+    expect(full.conversationsProcessed).toBe(3);
+
+    const signal = { aborted: true };
+    const cancelled = await extractMemories(store, PROVIDERS.stub, undefined, { signal });
+    expect(cancelled.conversationsProcessed).toBe(0);
+  });
 });

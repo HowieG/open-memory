@@ -77,22 +77,32 @@ function applyUpdate(facts: Map<string, KnowledgeFact>, update: ExtractionUpdate
   }
 }
 
-/** Run extraction over the whole store with the given provider. */
+export interface ExtractOptions {
+  /** called after each conversation is processed (for a progress bar) */
+  onProgress?: (processed: number) => void;
+  /** abort a long run (the user clicked Cancel) */
+  signal?: { aborted: boolean };
+}
+
+/** Run extraction over the whole store with the given provider. Cancellable; reports progress. */
 export async function extractMemories(
   store: ConversationStore,
   provider: MemoryProvider,
   config?: ProviderConfig,
+  opts: ExtractOptions = {},
 ): Promise<ExtractionResult> {
   const facts = new Map<string, KnowledgeFact>();
   const followups: string[] = [];
   let processed = 0;
 
   for await (const conv of memoryExtractionSource(store)) {
+    if (opts.signal?.aborted) break;
     const raw = await provider.complete(SYSTEM_PROMPT, buildUserPrompt([...facts.values()], conv), config);
     const update = parseExtraction(raw);
     applyUpdate(facts, update, conv.id);
     for (const f of update.followups) if (!followups.includes(f)) followups.push(f);
     processed++;
+    opts.onProgress?.(processed);
   }
 
   return { facts: [...facts.values()], followups, conversationsProcessed: processed };
