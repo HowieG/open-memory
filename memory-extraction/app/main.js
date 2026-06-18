@@ -1,3 +1,5 @@
+require("dotenv").config({ path: require("node:path").join(__dirname, ".env") });
+
 const { app, BrowserWindow, ipcMain, dialog, clipboard, shell } = require("electron");
 const path = require("node:path");
 const crypto = require("node:crypto");

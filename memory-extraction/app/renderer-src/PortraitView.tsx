@@ -120,7 +120,7 @@ export function PortraitView({
         </p>
         <p className="fineprint">
           To do this your chat messages are sent to Claude. Everything else in OpenMemory stays on
-          your machine. You bring your own key, so you pay for and control the request.
+          your machine.
         </p>
         <input
           className="key-input"

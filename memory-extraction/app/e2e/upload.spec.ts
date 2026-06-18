@@ -22,6 +22,9 @@ const SENSITIVE_DIR = path.join(HERE, "sample-sensitive");
 let zipPath: string;
 let sensitiveZipPath: string;
 let storeDir: string;
+// Fresh Electron userData per run so a real Anthropic key persisted in localStorage
+// (from a prior real-model run) can't leak in and route the portrait off the stub.
+let userDataDir: string;
 
 test.beforeAll(() => {
   const tmp = mkdtempSync(path.join(tmpdir(), "om-e2e-"));
@@ -35,10 +38,11 @@ test.beforeAll(() => {
   );
   // Isolated, empty store per run so the sidebar count is deterministic.
   storeDir = mkdtempSync(path.join(tmpdir(), "om-store-"));
+  userDataDir = mkdtempSync(path.join(tmpdir(), "om-userdata-"));
 });
 
 test("upload -> memory store confirmation -> memories page -> render a conversation", async () => {
-  const app = await electron.launch({ args: [APP_DIR], env: { ...process.env, OM_STORE_DIR: storeDir } });
+  const app = await electron.launch({ args: [APP_DIR, `--user-data-dir=${userDataDir}`], env: { ...process.env, OM_STORE_DIR: storeDir } });
   await app.evaluate(async ({ dialog }, p) => {
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [p] });
   }, zipPath);
@@ -85,7 +89,7 @@ test("emoji portrait: import -> consent -> streamed radial portrait -> hover exc
   const freshStore = mkdtempSync(path.join(tmpdir(), "om-store-portrait-"));
   // OM_NO_EXTERNAL: share copies to clipboard but does NOT open the X composer in CI.
   const app = await electron.launch({
-    args: [APP_DIR],
+    args: [APP_DIR, `--user-data-dir=${userDataDir}`],
     env: { ...process.env, OM_STORE_DIR: freshStore, OM_NO_EXTERNAL: "1" },
   });
   await app.evaluate(async ({ dialog }, p) => {
@@ -134,7 +138,7 @@ test("emoji portrait: import -> consent -> streamed radial portrait -> hover exc
 
 test("sensitive memories + conversations blur and lock, then reveal on click", async () => {
   const freshStore = mkdtempSync(path.join(tmpdir(), "om-store-sensitive-"));
-  const app = await electron.launch({ args: [APP_DIR], env: { ...process.env, OM_STORE_DIR: freshStore } });
+  const app = await electron.launch({ args: [APP_DIR, `--user-data-dir=${userDataDir}`], env: { ...process.env, OM_STORE_DIR: freshStore } });
   await app.evaluate(async ({ dialog }, p) => {
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [p] });
   }, sensitiveZipPath);
@@ -169,7 +173,7 @@ test("sensitive memories + conversations blur and lock, then reveal on click", a
 
 test("emoji portrait: consent 'no' falls back to the titles/memories view", async () => {
   const freshStore = mkdtempSync(path.join(tmpdir(), "om-store-noconsent-"));
-  const app = await electron.launch({ args: [APP_DIR], env: { ...process.env, OM_STORE_DIR: freshStore } });
+  const app = await electron.launch({ args: [APP_DIR, `--user-data-dir=${userDataDir}`], env: { ...process.env, OM_STORE_DIR: freshStore } });
   await app.evaluate(async ({ dialog }, p) => {
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [p] });
   }, zipPath);

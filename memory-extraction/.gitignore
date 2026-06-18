@@ -1,10 +1,11 @@
+.env
 node_modules/
 out/
 fixtures/
 dist/
 *.tsbuildinfo
 core.cjs
-qa.png
+qa*.png
 test-results/
 playwright-report/
 renderer-dist/

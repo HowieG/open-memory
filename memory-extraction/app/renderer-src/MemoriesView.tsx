@@ -138,6 +138,9 @@ export function MemoriesView(props: Props) {
   const [tier, setTier] = useState<"free" | "premium">("free");
   const [filter, setFilter] = useState<"All" | Bucket | "Other">("All");
   const [threadsShown, setThreadsShown] = useState(THREADS_PAGE);
+  // Placeholder consent control (no backend yet) — local + accessible so the
+  // sharing row reads/behaves like a real switch.
+  const [sharingEnabled, setSharingEnabled] = useState(true);
   const limit = tier === "free" ? FREE_LIMIT : undefined;
 
   const selected = providers.find((p) => p.id === providerId) ?? providers[0];
@@ -214,11 +217,14 @@ export function MemoriesView(props: Props) {
 
     return (
       <div className="memories memories-wide">
-        <h2>Your memories</h2>
-        <div className="status">
-          Extracted from {memories!.processed ?? facts.length} conversations
-          {eligibility?.excluded ? ` · ${eligibility.excluded} excluded (do-not-remember)` : ""}
-          <button className="link" data-testid="reextract" onClick={props.onReset}>Re-extract</button>
+        <div className="om-hero">
+          <div className="om-hero-cap">// your portrait — developing</div>
+          <h2 className="om-hero-title">You, in full color.</h2>
+          <p className="om-hero-sub">
+            Extracted from {memories!.processed ?? facts.length} conversations
+            {eligibility?.excluded ? ` · ${eligibility.excluded} excluded (do-not-remember)` : ""}.
+            <button className="link" data-testid="reextract" onClick={props.onReset}>Re-extract</button>
+          </p>
         </div>
 
         {fus.length > 0 && (
@@ -286,6 +292,23 @@ export function MemoriesView(props: Props) {
               </div>
             </div>
           ))}
+        </div>
+
+        <div className="om-share-row">
+          <div>
+            <div className="om-share-cap">// sharing</div>
+            <div className="om-share-title">Let services read your portrait</div>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={sharingEnabled}
+            aria-label="Let services read your portrait"
+            className={"om-toggle" + (sharingEnabled ? " on" : "")}
+            onClick={() => setSharingEnabled((s) => !s)}
+          >
+            <span className="om-toggle-knob" aria-hidden="true" />
+          </button>
         </div>
       </div>
     );
