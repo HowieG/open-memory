@@ -3,6 +3,7 @@ import { ConversationView } from "./ConversationView";
 import { MemoriesView } from "./MemoriesView";
 import { PortraitView } from "./PortraitView";
 import type { ConvData, ConvMeta, Eligibility, MemoriesDoc, ProviderInfo, RateLimitInfo, UploadResult } from "./env";
+import wordmarkUrl from "./logos/openmemory-wordmark.png";
 
 // Real brand logos dropped into ./logos/ (openai|claude|gemini . svg|png) render
 // instead of the inline approximations below. Missing ones fall back gracefully.
@@ -64,7 +65,18 @@ export function App() {
   const [status, setStatus] = useState("");
   const [hot, setHot] = useState(false);
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
+  const [menuOpen, setMenuOpen] = useState(false);
   const didInit = useRef(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (!profileRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [menuOpen]);
 
   const toggleReveal = (id: string) =>
     setRevealed((prev) => {
@@ -187,12 +199,9 @@ export function App() {
     <div className="om-app">
       <div className="om-shell">
         <aside className="om-sidebar">
-          <div className="om-brand-mark">open<b>me</b>mory</div>
+          <div className="om-brand-mark"><img className="om-brand-img" src={wordmarkUrl} alt="OpenMemory" /></div>
           <nav className="om-nav">
             {navItem("memories", "Memories")}
-            {navItem("conversations", "Conversations")}
-            {navItem("import", "Import")}
-            {navItem("settings", "Settings")}
           </nav>
           <div className="om-side-head">// conversations</div>
           <div className="conv-list">
@@ -232,12 +241,32 @@ export function App() {
                 <div className="om-progressbar-fill" style={{ width: `${developedPercent}%` }} />
               </div>
             </div>
-            <div className="om-profile">
-              <span className="om-avatar" aria-hidden="true" />
-              <div className="om-profile-meta">
-                <div className="om-profile-name">Your portrait</div>
-                <div className="om-profile-sub">portrait · {developedPercent}%</div>
-              </div>
+            <div className="om-profile-wrap" ref={profileRef}>
+              {menuOpen && (
+                <div className="om-menu" role="menu">
+                  <button
+                    className="om-menu-item"
+                    role="menuitem"
+                    data-testid="nav-settings"
+                    onClick={() => { setView("settings"); setMenuOpen(false); }}
+                  >
+                    Settings
+                  </button>
+                </div>
+              )}
+              <button
+                className={"om-profile" + (menuOpen ? " open" : "")}
+                data-testid="profile-btn"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen((o) => !o)}
+              >
+                <span className="om-avatar" aria-hidden="true" />
+                <div className="om-profile-meta">
+                  <div className="om-profile-name">Your portrait</div>
+                  <div className="om-profile-sub">portrait · {developedPercent}%</div>
+                </div>
+              </button>
             </div>
           </div>
         </aside>
@@ -276,7 +305,16 @@ export function App() {
           {view === "settings" && (
             <div className="settings" data-testid="settings">
               <h2>Settings</h2>
-              <div className="note">Everything stays on your machine. These actions wipe local data and can't be undone.</div>
+              <div className="note">Everything stays on your machine.</div>
+              <div className="setting-row">
+                <div className="setting-copy">
+                  <div className="setting-title">Import conversations</div>
+                  <div className="setting-sub">Add a ChatGPT or Claude export zip.</div>
+                </div>
+                <button data-testid="nav-import" onClick={() => setView("import")}>Import</button>
+              </div>
+              <div className="setting-divider" aria-hidden="true" />
+              <div className="note">These actions wipe local data and can't be undone.</div>
               <div className="setting-row">
                 <div className="setting-copy">
                   <div className="setting-title">Conversations</div>

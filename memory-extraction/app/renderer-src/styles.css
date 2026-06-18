@@ -68,16 +68,17 @@ button.link.danger:hover { color: #b00020; }
    "developed photo" holds the screen content (grain + glow + dots baked in). */
 .om-app { height: 100%; padding: 24px; background: var(--om-page); }
 .om-shell {
-  height: 100%; max-width: 1240px; margin: 0 auto;
+  height: 100%; max-width: 1360px; margin: 0 auto;
   display: flex; gap: 26px;
   background: var(--om-frame); border-radius: var(--om-r-card); padding: 26px;
   box-shadow: var(--om-shadow-card);
 }
 
 /* sidebar lives in the thick polaroid border */
-.om-sidebar { width: 208px; flex: none; min-height: 0; display: flex; flex-direction: column; padding: 8px 6px 4px; }
+.om-sidebar { width: 256px; flex: none; min-height: 0; display: flex; flex-direction: column; padding: 8px 6px 4px; }
 .om-brand-mark { font-family: var(--om-brand); font-size: 21px; color: var(--om-ink); letter-spacing: 0.01em; }
 .om-brand-mark b { color: var(--om-purple-deep); font-weight: 400; }
+.om-brand-img { display: block; width: 132px; height: auto; }
 
 .om-nav { display: flex; flex-direction: column; gap: 5px; margin-top: 30px; flex: 0 0 auto; }
 .om-navitem { display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: 11px; background: transparent; border: 0; cursor: pointer; text-align: left; width: 100%; }
@@ -92,13 +93,13 @@ button.link.danger:hover { color: #b00020; }
 .om-side-head { flex: 0 0 auto; padding: 22px 12px 8px; font: 11px var(--om-mono); color: var(--om-muted); }
 .conv-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; }
 .conv-list::-webkit-scrollbar { width: 0; }
-.om-conv-item { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border: 0; border-radius: 9px; background: transparent; color: var(--om-ink); text-align: left; cursor: pointer; width: 100%; }
+.om-conv-item { display: flex; align-items: center; gap: 9px; padding: 6px 10px; border: 0; border-radius: 9px; background: transparent; color: var(--om-ink); text-align: left; cursor: pointer; width: 100%; }
 .om-conv-item:hover { background: rgba(165, 135, 245, 0.07); }
 .om-conv-item.active { background: rgba(165, 135, 245, 0.14); }
 .om-conv-item:focus-visible { outline: 2px solid var(--om-purple); outline-offset: -2px; }
 .om-logo { flex: 0 0 16px; width: 16px; height: 16px; display: grid; place-items: center; }
 .om-logo-img { width: 16px; height: 16px; object-fit: contain; }
-.om-title { flex: 1; min-width: 0; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.om-title { flex: 1; min-width: 0; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .om-title.locked { filter: blur(4px); user-select: none; }
 .om-lock { flex: 0 0 auto; font-size: 12px; line-height: 1; cursor: pointer; opacity: .8; }
 .om-lock:hover { opacity: 1; }
@@ -110,7 +111,13 @@ button.link.danger:hover { color: #b00020; }
 .om-mono-terra { font: 11px var(--om-mono); color: var(--om-terra); margin-bottom: 7px; }
 .om-progressbar { height: 6px; border-radius: 999px; background: #ece8f2; overflow: hidden; }
 .om-progressbar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--om-purple), var(--om-amber)); transition: width .3s; }
-.om-profile { display: flex; align-items: center; gap: 11px; padding-top: 14px; border-top: 1px solid var(--om-hairline); }
+.om-profile-wrap { position: relative; }
+.om-profile { display: flex; align-items: center; gap: 11px; width: 100%; margin-top: 14px; padding: 10px 8px 4px; border: 0; border-top: 1px solid var(--om-hairline); border-radius: 0 0 11px 11px; background: transparent; text-align: left; cursor: pointer; }
+.om-profile:hover, .om-profile.open { background: rgba(165, 135, 245, 0.07); }
+.om-profile:focus-visible { outline: 2px solid var(--om-purple); outline-offset: 1px; }
+.om-menu { position: absolute; left: 4px; right: 4px; bottom: calc(100% + 6px); background: #fff; border: 1px solid var(--om-hairline); border-radius: 12px; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12); padding: 5px; z-index: 10; }
+.om-menu-item { display: block; width: 100%; padding: 9px 12px; border: 0; border-radius: 8px; background: transparent; text-align: left; cursor: pointer; font-family: var(--om-ui); font-size: 14px; font-weight: 600; color: var(--om-ink); }
+.om-menu-item:hover { background: rgba(165, 135, 245, 0.1); }
 .om-avatar { width: 36px; height: 36px; border-radius: 50%; flex: none; background: linear-gradient(135deg, var(--om-sky), var(--om-purple)); }
 .om-profile-name { font-family: var(--om-ui); font-size: 14px; font-weight: 600; color: var(--om-ink); }
 .om-profile-sub { font: 11px var(--om-mono); color: var(--om-muted); }
@@ -250,6 +257,8 @@ button.link.danger:hover { color: #b00020; }
 .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--line); }
 .setting-title { font-size: 15px; font-weight: 600; }
 .setting-sub { color: var(--muted); font-size: 13px; }
+.setting-divider { height: 18px; }
+.settings .note + .setting-row { border-top: 0; }
 .danger-btn { color: #b00020; border-color: #e7c2c2; }
 .danger-btn:hover { background: #fbeaea; }
 
@@ -279,9 +288,7 @@ button.link.danger:hover { color: #b00020; }
 .portrait-consent h2 { margin: 0; font-family: var(--font-display); font-weight: 500; font-size: 26px; }
 .portrait-consent .tease { font-size: 17px; max-width: 46ch; margin: 0; }
 .portrait-consent .tease em { font-style: italic; }
-.portrait-consent .fineprint { font: 12px/1.5 var(--font-mono); color: var(--muted); max-width: 52ch; margin: 0; }
-.key-input { font: 13px var(--font-mono); padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; width: min(420px, 80%); }
-.key-input:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
+.consent-billboard { width: min(540px, 78%); height: auto; margin: 6px 0; }
 .consent-actions { display: flex; gap: 10px; margin-top: 8px; }
 
 .portrait { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; overflow: hidden; padding: 16px 24px 0; }
@@ -293,8 +300,7 @@ button.link.danger:hover { color: #b00020; }
 .portrait-progress .bar { height: 100%; background: var(--ink); transition: width .3s; }
 .portrait-canvas { position: relative; flex: 1; width: 100%; min-height: 0; }
 .portrait-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; }
-.wordmark { font-family: var(--font-display); font-size: 30px; color: var(--muted); letter-spacing: -0.01em; }
-.wordmark b { color: var(--ink); font-weight: 700; }
+.wordmark-img { width: 180px; height: auto; opacity: .9; }
 
 .emoji-tile {
   position: absolute; left: 50%; top: 50%;
