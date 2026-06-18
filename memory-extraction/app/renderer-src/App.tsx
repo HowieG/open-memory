@@ -168,28 +168,33 @@ export function App() {
     setMemories(await api.getMemories());
   }
 
-  const navBtn = (v: View, label: string) => (
-    <button className={"nav-item" + (view === v ? " active" : "")} data-testid={`nav-${v}`} onClick={() => setView(v)}>
-      {label}
+  // Placeholder identity + develop progress for the sidebar footer. Static for
+  // now (no auth / single local user) — a hook point for real values later.
+  const developedPercent = 87;
+  // Polaroid date stamp (e.g. "17 JUN 2026") — the moment this print developed.
+  const photoDate = new Date()
+    .toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+    .toUpperCase();
+
+  const navItem = (v: View, label: string) => (
+    <button className={"om-navitem" + (view === v ? " active" : "")} data-testid={`nav-${v}`} onClick={() => setView(v)}>
+      <span className="om-navdot" aria-hidden="true" />
+      <span className="om-navlabel">{label}</span>
     </button>
   );
 
   return (
     <div className="om-app">
-      <header>
-        <h1>open-memory</h1>
-        <span className="sub">everything stays on your machine</span>
-      </header>
-
-      <div className="body">
-        <aside className="sidebar">
-          <nav className="nav">
-            {navBtn("memories", "Memories")}
-            {navBtn("conversations", "Conversations")}
-            {navBtn("import", "Import")}
-            {navBtn("settings", "Settings")}
+      <div className="om-shell">
+        <aside className="om-sidebar">
+          <div className="om-brand-mark">open<b>me</b>mory</div>
+          <nav className="om-nav">
+            {navItem("memories", "Memories")}
+            {navItem("conversations", "Conversations")}
+            {navItem("import", "Import")}
+            {navItem("settings", "Settings")}
           </nav>
-          <div className="side-head">Conversations</div>
+          <div className="om-side-head">// conversations</div>
           <div className="conv-list">
             {conversations.map((c) => {
               const locked = !!c.sensitive && !revealed.has(c.id);
@@ -219,9 +224,30 @@ export function App() {
               );
             })}
           </div>
+
+          <div className="om-side-foot">
+            <div className="om-progress-block">
+              <div className="om-mono-terra">// {developedPercent}% developed</div>
+              <div className="om-progressbar">
+                <div className="om-progressbar-fill" style={{ width: `${developedPercent}%` }} />
+              </div>
+            </div>
+            <div className="om-profile">
+              <span className="om-avatar" aria-hidden="true" />
+              <div className="om-profile-meta">
+                <div className="om-profile-name">Your portrait</div>
+                <div className="om-profile-sub">portrait · {developedPercent}%</div>
+              </div>
+            </div>
+          </div>
         </aside>
 
-        <main className="main">
+        <section className="om-photo">
+          <div className="om-photo-grain" aria-hidden="true" />
+          <div className="om-photo-glow" aria-hidden="true" />
+          <div className="om-photo-dots" aria-hidden="true"><span /><span /></div>
+          <div className="om-photo-date" aria-hidden="true">{photoDate}</div>
+          <main className="main">
           {view === "memories" && (
             <MemoriesView
               eligibility={eligibility}
@@ -311,7 +337,8 @@ export function App() {
               )}
             </div>
           )}
-        </main>
+          </main>
+        </section>
       </div>
     </div>
   );
