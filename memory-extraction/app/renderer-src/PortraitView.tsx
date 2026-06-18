@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { EmojiSignal } from "./env";
+import wordmarkUrl from "./logos/openmemory-wordmark.png";
+import billboardUrl from "./logos/openmemory-billboard.png";
 
 /**
  * The first-delight screen. After import, we offer to "draw a picture of you" in
@@ -36,9 +38,6 @@ export function PortraitView({
 }) {
   const api = window.api;
   const [phase, setPhase] = useState<Phase>("consent");
-  // BYO Anthropic key — without it we fall back to an offline preview (low quality).
-  // localStorage is a stopgap; safeStorage in main is the proper home (deferred).
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem("om-anthropic-key") ?? "");
   const [signals, setSignals] = useState<EmojiSignal[]>([]);
   const [active, setActive] = useState<EmojiSignal | null>(null);
   const [convCount, setConvCount] = useState(0);
@@ -84,17 +83,15 @@ export function PortraitView({
   async function draw(force = false) {
     if (runningRef.current) return;
     runningRef.current = true;
-    const key = apiKey.trim();
-    if (key) localStorage.setItem("om-anthropic-key", key);
-    // Real portrait via Claude (Haiku) when a key is present; offline stub preview otherwise.
-    const providerId = key ? "claude" : "stub";
-    const config = key ? { apiKey: key, model: PORTRAIT_MODEL } : {};
+    // The Anthropic key now lives in the app's .env (read by the main process).
+    // Passing no provider lets main decide: Claude (Haiku) when a key is present,
+    // offline stub preview otherwise. The model is the only config we still set.
     setPhase("drawing");
     setSignals([]);
     setProgress(null);
     setError(null);
     try {
-      const res = await api.startEmojiPortrait(providerId, config, 20, force);
+      const res = await api.startEmojiPortrait(null, { model: PORTRAIT_MODEL }, 20, force);
       runningRef.current = false;
       if ("error" in res) {
         setError(res.error);
@@ -115,31 +112,12 @@ export function PortraitView({
       <div className="portrait-consent" data-testid="portrait-consent">
         <h2>While we get your memories in order…</h2>
         <p className="tease">
-          Can we convince you we <em>get</em> you? Let us draw a quick picture of you — in emoji —
-          from your own words.
+          Can we convince you we <em>get</em> you? Let us draw a portrait of you.
         </p>
-        <p className="fineprint">
-          To do this your chat messages are sent to Claude. Everything else in OpenMemory stays on
-          your machine.
-        </p>
-        <input
-          className="key-input"
-          data-testid="portrait-key"
-          type="password"
-          autoComplete="off"
-          spellCheck={false}
-          placeholder="sk-ant-… (your Anthropic API key)"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-        />
-        <p className="fineprint">
-          {apiKey.trim()
-            ? "We'll read your conversations with Claude Haiku and draw the real thing."
-            : "No key? We'll show a quick local preview instead — lower quality, just titles."}
-        </p>
+        <img className="consent-billboard" src={billboardUrl} alt="A collage portrait of you" />
         <div className="consent-actions">
           <button data-testid="portrait-yes" onClick={() => draw()}>
-            {apiKey.trim() ? "Yes — draw my portrait" : "Show me a preview"}
+            Yes — draw my portrait
           </button>
           <button className="secondary" data-testid="portrait-no" onClick={onSkip}>
             No thanks
@@ -174,9 +152,7 @@ export function PortraitView({
 
       <div className="portrait-canvas" ref={canvasRef} role="group" aria-label="Your emoji portrait">
         <div className="portrait-center" aria-hidden="true">
-          <span className="wordmark">
-            Open<b>me</b>mory
-          </span>
+          <img className="wordmark-img" src={wordmarkUrl} alt="OpenMemory" />
         </div>
 
         {signals.map((sig, i) => {

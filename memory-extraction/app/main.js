@@ -255,6 +255,13 @@ ipcMain.handle("clear-memories", async () => {
 let emojiAbort = null;
 
 ipcMain.handle("start-emoji-portrait", async (event, { providerId, config, max, force } = {}) => {
+  // Provider is resolved here (not in the renderer): the Anthropic key lives in
+  // the app's .env, so the real Claude run is used when ANTHROPIC_API_KEY is set
+  // (and external calls aren't disabled); otherwise the offline stub draws a preview.
+  if (!providerId) {
+    providerId =
+      process.env.ANTHROPIC_API_KEY && !process.env.OM_NO_EXTERNAL ? "claude" : "stub";
+  }
   const provider = PROVIDERS[providerId];
   if (!provider) return { error: `unknown provider "${providerId}"` };
   const hash = convSetHash();

@@ -53,8 +53,8 @@ declare global {
       clearConversations(): Promise<{ ok: true }>;
       clearMemories(): Promise<{ ok: true }>;
       startEmojiPortrait(
-        providerId: string,
-        config?: { apiKey?: string; endpoint?: string },
+        providerId: string | null,
+        config?: { apiKey?: string; endpoint?: string; model?: string },
         max?: number,
         force?: boolean,
       ): Promise<EmojiPortraitResult>;

@@ -3,6 +3,7 @@ import { ConversationView } from "./ConversationView";
 import { MemoriesView } from "./MemoriesView";
 import { PortraitView } from "./PortraitView";
 import type { ConvData, ConvMeta, Eligibility, MemoriesDoc, ProviderInfo, RateLimitInfo, UploadResult } from "./env";
+import wordmarkUrl from "./logos/openmemory-wordmark.png";
 
 // Real brand logos dropped into ./logos/ (openai|claude|gemini . svg|png) render
 // instead of the inline approximations below. Missing ones fall back gracefully.
@@ -198,7 +199,7 @@ export function App() {
     <div className="om-app">
       <div className="om-shell">
         <aside className="om-sidebar">
-          <div className="om-brand-mark">open<b>me</b>mory</div>
+          <div className="om-brand-mark"><img className="om-brand-img" src={wordmarkUrl} alt="OpenMemory" /></div>
           <nav className="om-nav">
             {navItem("memories", "Memories")}
           </nav>

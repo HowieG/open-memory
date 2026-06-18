@@ -72,6 +72,7 @@ button.link.danger:hover { color: #b00020; }
 .om-sidebar { width: 256px; flex: none; min-height: 0; display: flex; flex-direction: column; padding: 8px 6px 4px; }
 .om-brand-mark { font-family: var(--om-brand); font-size: 21px; color: var(--om-ink); letter-spacing: 0.01em; }
 .om-brand-mark b { color: var(--om-purple-deep); font-weight: 400; }
+.om-brand-img { display: block; width: 132px; height: auto; }
 
 .om-nav { display: flex; flex-direction: column; gap: 5px; margin-top: 30px; flex: 0 0 auto; }
 .om-navitem { display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: 11px; background: transparent; border: 0; cursor: pointer; text-align: left; width: 100%; }
@@ -272,9 +273,7 @@ button.link.danger:hover { color: #b00020; }
 .portrait-consent h2 { margin: 0; font-family: var(--font-display); font-weight: 500; font-size: 26px; }
 .portrait-consent .tease { font-size: 17px; max-width: 46ch; margin: 0; }
 .portrait-consent .tease em { font-style: italic; }
-.portrait-consent .fineprint { font: 12px/1.5 var(--font-mono); color: var(--muted); max-width: 52ch; margin: 0; }
-.key-input { font: 13px var(--font-mono); padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; width: min(420px, 80%); }
-.key-input:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
+.consent-billboard { width: min(540px, 78%); height: auto; margin: 6px 0; }
 .consent-actions { display: flex; gap: 10px; margin-top: 8px; }
 
 .portrait { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; overflow: hidden; padding: 16px 24px 0; }
@@ -286,8 +285,7 @@ button.link.danger:hover { color: #b00020; }
 .portrait-progress .bar { height: 100%; background: var(--ink); transition: width .3s; }
 .portrait-canvas { position: relative; flex: 1; width: 100%; min-height: 0; }
 .portrait-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; }
-.wordmark { font-family: var(--font-display); font-size: 30px; color: var(--muted); letter-spacing: -0.01em; }
-.wordmark b { color: var(--ink); font-weight: 700; }
+.wordmark-img { width: 180px; height: auto; opacity: .9; }
 
 .emoji-tile {
   position: absolute; left: 50%; top: 50%;
