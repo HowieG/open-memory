@@ -51,10 +51,16 @@
 html, body, #root { height: 100%; margin: 0; }
 body { font: 15px/1.5 var(--font-sans); color: var(--ink); background: var(--om-page); -webkit-font-smoothing: antialiased; }
 
-button { font: inherit; background: var(--ink); color: var(--paper); border: 0; border-radius: 10px; padding: 9px 16px; cursor: pointer; }
-button.secondary { background: transparent; color: var(--ink); border: 1px solid var(--line); }
-button.link { background: transparent; color: var(--muted); border: 0; padding: 2px 6px; border-radius: 6px; font-size: 13px; }
-button.link:hover { color: var(--ink); background: #f1efe8; }
+/* primary purple button (the design's canonical action), frosted secondary, ghost */
+button { font: inherit; font-weight: 600; background: var(--om-purple); color: #fff; border: 0; border-radius: var(--om-r-input); padding: 11px 20px; cursor: pointer; transition: background .15s; }
+button:hover { background: var(--om-purple-hover); }
+button:focus-visible { outline: 2px solid var(--om-purple-deep); outline-offset: 2px; }
+button.secondary { background: var(--om-frost-bg-strong); color: var(--om-purple-deep); border: 1px solid var(--om-frost-border); }
+button.secondary:hover { background: rgba(255,255,255,.85); }
+button.ghost { background: transparent; color: var(--om-purple-deep); border: 0; font-weight: 600; }
+button.ghost:hover { background: rgba(165,135,245,.1); }
+button.link { background: transparent; color: var(--muted); border: 0; padding: 2px 6px; border-radius: 6px; font-size: 13px; font-weight: 400; }
+button.link:hover { color: var(--om-ink); background: rgba(165,135,245,.1); }
 button.link.danger:hover { color: #b00020; }
 
 /* ════════════════ Polaroid shell ════════════════
@@ -124,17 +130,26 @@ button.link.danger:hover { color: #b00020; }
 /* content layer sits above grain/glow, below the dots */
 .main { position: relative; z-index: 1; flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 
-/* import */
-.import { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; }
-.drop { width: min(620px, 88%); padding: 52px 40px; border: 2px dashed var(--line); border-radius: 20px; text-align: center; color: #555; background: #fff; transition: border-color .14s, box-shadow .14s, transform .14s; }
-.drop.hot { border-color: var(--ink); box-shadow: 0 12px 40px rgba(0,0,0,.10); transform: translateY(-2px); }
-.drop-logos { display: flex; align-items: center; justify-content: center; gap: 22px; margin-bottom: 22px; }
-.drop-logo { width: 60px; height: 60px; display: grid; place-items: center; background: var(--paper); border: 1px solid var(--line); border-radius: 16px; }
-.drop-head { font-family: var(--font-display); font-weight: 500; font-size: 24px; color: var(--ink); }
-.drop .or { margin: 16px 0; color: var(--muted); }
-.checkline { display: flex; align-items: center; gap: 8px; }
-.checkline h2 { margin: 0; font-size: 22px; font-family: var(--font-display); font-weight: 500; }
-.check { width: 20px; height: 20px; border-radius: 50%; background: var(--ink); color: var(--paper); display: grid; place-items: center; font-size: 12px; }
+/* import / sign-up — frosted centered card on the photo surface */
+.import { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px; }
+.om-signup-card { position: relative; width: 560px; max-width: 100%; text-align: center; background: var(--om-frost-bg); border: 1px solid var(--om-frost-border); border-radius: 22px; padding: 44px 46px; box-shadow: var(--om-shadow-card); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+.om-signup-title { margin: 0; font-family: var(--om-display); font-weight: 400; font-size: 54px; line-height: .98; color: var(--om-purple-deep); }
+.om-signup-title.sm { font-size: 29px; line-height: 1.08; }
+.om-signup-sub { margin: 15px auto 0; max-width: 400px; font-size: 16px; line-height: 1.55; color: var(--om-body); }
+.om-signup-check { width: 46px; height: 46px; margin: 0 auto 16px; border-radius: 50%; background: var(--om-purple); color: #fff; display: grid; place-items: center; font-size: 22px; }
+.om-signup-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 26px; }
+
+.drop { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; width: 100%; margin-top: 26px; padding: 18px 20px; border: 1.5px dashed rgba(124,92,224,.4); border-radius: var(--om-r-input); background: rgba(255,255,255,.5); transition: border-color .14s, box-shadow .14s, background .14s; }
+.drop.hot { border-color: var(--om-purple); background: rgba(255,255,255,.78); box-shadow: 0 14px 40px -20px rgba(70,80,120,.5); }
+.drop-head { font-family: var(--om-ui); font-size: 15px; color: var(--om-body); }
+.drop .or { color: var(--om-muted); font: 12px var(--om-mono); }
+
+.om-signup-card .status { margin-top: 12px; }
+.om-source-chips { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; justify-content: center; }
+.om-source-chip { display: inline-flex; align-items: center; gap: 6px; font: 12px var(--om-mono); color: var(--om-body); background: rgba(255,255,255,.6); border: 1px solid rgba(255,255,255,.8); border-radius: 999px; padding: 6px 13px; }
+.om-source-chip.muted { color: var(--om-muted); }
+.om-source-chip img, .om-source-chip svg { width: 14px; height: 14px; }
+
 .status { color: var(--muted); font: 12px var(--font-mono); min-height: 16px; }
 .status.err { color: #b00020; }
 
