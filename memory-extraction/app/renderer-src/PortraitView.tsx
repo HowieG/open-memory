@@ -118,10 +118,6 @@ export function PortraitView({
           Can we convince you we <em>get</em> you? Let us draw a quick picture of you — in emoji —
           from your own words.
         </p>
-        <p className="fineprint">
-          To do this your chat messages are sent to Claude. Everything else in OpenMemory stays on
-          your machine.
-        </p>
         <input
           className="key-input"
           data-testid="portrait-key"
@@ -132,11 +128,6 @@ export function PortraitView({
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
         />
-        <p className="fineprint">
-          {apiKey.trim()
-            ? "We'll read your conversations with Claude Haiku and draw the real thing."
-            : "No key? We'll show a quick local preview instead — lower quality, just titles."}
-        </p>
         <div className="consent-actions">
           <button data-testid="portrait-yes" onClick={() => draw()}>
             {apiKey.trim() ? "Yes — draw my portrait" : "Show me a preview"}
