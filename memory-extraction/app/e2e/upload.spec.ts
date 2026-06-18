@@ -42,7 +42,8 @@ test.beforeAll(() => {
 });
 
 test("upload -> memory store confirmation -> memories page -> render a conversation", async () => {
-  const app = await electron.launch({ args: [APP_DIR, `--user-data-dir=${userDataDir}`], env: { ...process.env, OM_STORE_DIR: storeDir } });
+  // OM_NO_EXTERNAL forces the offline stub so the auto-extract is deterministic/no network.
+  const app = await electron.launch({ args: [APP_DIR, `--user-data-dir=${userDataDir}`], env: { ...process.env, OM_STORE_DIR: storeDir, OM_NO_EXTERNAL: "1" } });
   await app.evaluate(async ({ dialog }, p) => {
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [p] });
   }, zipPath);
@@ -58,13 +59,14 @@ test("upload -> memory store confirmation -> memories page -> render a conversat
   await expect(items).toHaveCount(2);
   await expect(win.locator('[data-testid="conv-item"][data-source="claude"]')).toHaveCount(2);
 
-  // 3. memories view: idle estimate -> preview extraction (stub, no key) -> real facts
+  // 3. memories view: extraction auto-starts (stub, key from .env in real use) -> real facts
   await win.getByTestId("to-memories").click();
-  await expect(win.getByTestId("estimate")).toContainText("eligible");
-  await win.getByTestId("preview").click();
   await expect(win.getByTestId("fact").first()).toContainText("Discussed:", { timeout: 30_000 });
   await expect(win.getByTestId("fact")).toHaveCount(2);
   await expect(win.getByTestId("fact-forget").first()).toBeVisible(); // each memory is controllable
+  // free-tier upgrade CTA is present, explaining the 25-memory cap
+  await expect(win.getByTestId("upgrade-pro")).toBeVisible();
+  await expect(win.getByText("Free users get 25 free memories.")).toBeVisible();
 
   // 3b. hide a memory -> it blurs + locks (mark as sensitive yourself)
   await expect(win.locator(".fact-card .fact-text.locked")).toHaveCount(0);
@@ -138,7 +140,7 @@ test("emoji portrait: import -> consent -> streamed radial portrait -> hover exc
 
 test("sensitive memories + conversations blur and lock, then reveal on click", async () => {
   const freshStore = mkdtempSync(path.join(tmpdir(), "om-store-sensitive-"));
-  const app = await electron.launch({ args: [APP_DIR, `--user-data-dir=${userDataDir}`], env: { ...process.env, OM_STORE_DIR: freshStore } });
+  const app = await electron.launch({ args: [APP_DIR, `--user-data-dir=${userDataDir}`], env: { ...process.env, OM_STORE_DIR: freshStore, OM_NO_EXTERNAL: "1" } });
   await app.evaluate(async ({ dialog }, p) => {
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [p] });
   }, sensitiveZipPath);
@@ -148,9 +150,8 @@ test("sensitive memories + conversations blur and lock, then reveal on click", a
   await win.getByTestId("pick").click();
   await expect(win.getByText("Conversations uploaded to your memory store")).toBeVisible({ timeout: 30_000 });
 
-  // preview extraction (stub) — this also runs the classify pass that tags conversations
+  // auto-extraction (stub) runs the classify pass too, which tags conversations
   await win.getByTestId("to-memories").click();
-  await win.getByTestId("preview").click();
   await expect(win.getByTestId("fact")).toHaveCount(3, { timeout: 30_000 });
 
   // two sensitive memory cards render blurred + locked, one stays clear
@@ -173,7 +174,7 @@ test("sensitive memories + conversations blur and lock, then reveal on click", a
 
 test("emoji portrait: consent 'no' falls back to the titles/memories view", async () => {
   const freshStore = mkdtempSync(path.join(tmpdir(), "om-store-noconsent-"));
-  const app = await electron.launch({ args: [APP_DIR, `--user-data-dir=${userDataDir}`], env: { ...process.env, OM_STORE_DIR: freshStore } });
+  const app = await electron.launch({ args: [APP_DIR, `--user-data-dir=${userDataDir}`], env: { ...process.env, OM_STORE_DIR: freshStore, OM_NO_EXTERNAL: "1" } });
   await app.evaluate(async ({ dialog }, p) => {
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [p] });
   }, zipPath);
@@ -184,9 +185,9 @@ test("emoji portrait: consent 'no' falls back to the titles/memories view", asyn
   await win.getByTestId("to-portrait").click();
   await expect(win.getByTestId("portrait-consent")).toBeVisible();
 
-  // decline -> no portrait, land on the memories view
+  // decline -> no portrait, land on the memories view (which auto-extracts)
   await win.getByTestId("portrait-no").click();
-  await expect(win.getByTestId("estimate")).toBeVisible({ timeout: 10_000 });
+  await expect(win.getByTestId("fact").first()).toBeVisible({ timeout: 30_000 });
   await expect(win.getByTestId("portrait")).toHaveCount(0);
 
   await app.close();

@@ -48,6 +48,9 @@ function Logo({ source, size = 16 }: { source: string; size?: number }) {
 
 type View = "memories" | "conversations" | "import" | "portrait" | "settings";
 
+// Free tier auto-extracts the latest 25 conversations; Pro lifts the cap.
+const FREE_LIMIT = 25;
+
 export function App() {
   const api = window.api;
   const [view, setView] = useState<View>("import");
@@ -67,6 +70,7 @@ export function App() {
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [menuOpen, setMenuOpen] = useState(false);
   const didInit = useRef(false);
+  const autoExtractedRef = useRef(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -106,6 +110,18 @@ export function App() {
       if (convs.length > 0) setView("memories");
     });
   }, []);
+
+  // Auto-extract: the memories view no longer asks for a key or a provider — on
+  // first arrival with eligible conversations and nothing extracted yet, we kick
+  // off extraction of the latest FREE_LIMIT conversations. The provider (Claude
+  // via .env, else the offline stub) is resolved in the main process.
+  useEffect(() => {
+    if (view !== "memories" || extracting || autoExtractedRef.current) return;
+    if (memories?.facts.length || memories?.extractedAt) return;
+    if (!eligibility || eligibility.eligible === 0) return;
+    autoExtractedRef.current = true;
+    runExtract("", {}, FREE_LIMIT);
+  }, [view, extracting, memories, eligibility]);
 
   // ---- import ----
   function handleIngest(r: Awaited<ReturnType<typeof api.pickAndIngest>>) {
@@ -280,21 +296,18 @@ export function App() {
           {view === "memories" && (
             <MemoriesView
               eligibility={eligibility}
-              providers={providers}
               memories={memories}
               extracting={extracting}
               progress={progress}
               phase={phase}
               rateLimited={rateLimited}
               error={extractError}
-              onExtract={runExtract}
-              onPreview={(limit) => runExtract("stub", {}, limit)}
               onCancel={() => api.cancelExtract()}
               onEdit={async (id, text) => setMemories(await api.editFact(id, text))}
               onForget={async (id) => setMemories(await api.forgetFact(id))}
               onHide={async (id, sensitive) => setMemories(await api.setFactSensitive(id, sensitive))}
               onProvenance={(convId) => selectConv(convId)}
-              onReset={() => setMemories(null)}
+              onReset={() => { autoExtractedRef.current = false; setMemories(null); }}
             />
           )}
 

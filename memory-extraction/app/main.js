@@ -135,6 +135,13 @@ ipcMain.handle("list-providers", () => rankProviders(sourceCounts()));
 ipcMain.handle("get-memories", () => loadFacts());
 
 ipcMain.handle("extract-memories", async (event, { providerId, config, limit }) => {
+  // Provider is resolved here, not in the renderer: the Anthropic key lives in the
+  // app's .env, so a missing providerId routes to Claude when ANTHROPIC_API_KEY is
+  // set (and external calls aren't disabled), and to the offline stub otherwise.
+  if (!providerId) {
+    providerId =
+      process.env.ANTHROPIC_API_KEY && !process.env.OM_NO_EXTERNAL ? "claude" : "stub";
+  }
   const provider = PROVIDERS[providerId];
   if (!provider) return { error: `unknown provider "${providerId}"` };
   extractAbort = { aborted: false };
