@@ -348,29 +348,43 @@ export function App() {
           {view === "import" && (
             <div className="import">
               {importResult ? (
-                <>
-                  <div className="checkline"><span className="check">✓</span><h2>Conversations uploaded to your memory store</h2></div>
-                  <div className="status">{importResult.count} from {importResult.source}{importResult.failed ? ` · ${importResult.failed} skipped` : ""}</div>
-                  <button data-testid="to-portrait" onClick={() => setView("portrait")}>Draw my portrait ✨</button>
-                  <button className="secondary" data-testid="to-memories" onClick={() => setView("memories")}>See your memories →</button>
-                  <button className="secondary" onClick={() => setImportResult(null)}>Import another</button>
-                </>
-              ) : (
-                <div
-                  className={"drop" + (hot ? " hot" : "")}
-                  data-testid="drop"
-                  onDragOver={(e) => { e.preventDefault(); setHot(true); }}
-                  onDragLeave={() => setHot(false)}
-                  onDrop={doDrop}
-                >
-                  <div className="drop-logos">
-                    <span className="drop-logo"><Logo source="chatgpt" size={44} /></span>
-                    <span className="drop-logo"><Logo source="claude" size={44} /></span>
+                <div className="om-signup-card">
+                  <div className="om-signup-check" aria-hidden="true">✓</div>
+                  <h2 className="om-signup-title sm">Conversations uploaded to your memory store</h2>
+                  <p className="om-signup-sub">
+                    {importResult.count} from {importResult.source}{importResult.failed ? ` · ${importResult.failed} skipped` : ""}.
+                  </p>
+                  <div className="om-signup-actions">
+                    <button data-testid="to-portrait" onClick={() => setView("portrait")}>Draw my portrait ✨</button>
+                    <button className="secondary" data-testid="to-memories" onClick={() => setView("memories")}>See your memories →</button>
+                    <button className="ghost" onClick={() => setImportResult(null)}>Import another</button>
                   </div>
-                  <div className="drop-head">Drop your export zip here</div>
-                  <div className="or">or</div>
-                  <button data-testid="pick" onClick={doPick}>Choose file</button>
+                </div>
+              ) : (
+                <div className="om-signup-card">
+                  <div className="om-hero-cap">// step 01 — a snapshot</div>
+                  <h1 className="om-signup-title">Who are you?</h1>
+                  <p className="om-signup-sub">
+                    Your AI chats, notes and apps develop into one living portrait — so every service
+                    already knows the real you.
+                  </p>
+                  <div
+                    className={"drop" + (hot ? " hot" : "")}
+                    data-testid="drop"
+                    onDragOver={(e) => { e.preventDefault(); setHot(true); }}
+                    onDragLeave={() => setHot(false)}
+                    onDrop={doDrop}
+                  >
+                    <span className="drop-head">Drop your export .zip files here</span>
+                    <span className="or">or</span>
+                    <button data-testid="pick" onClick={doPick}>Choose files →</button>
+                  </div>
                   <div className={"status" + (status.startsWith("Error") ? " err" : "")}>{status}</div>
+                  <div className="om-source-chips">
+                    <span className="om-source-chip"><Logo source="chatgpt" size={14} /> ChatGPT</span>
+                    <span className="om-source-chip"><Logo source="claude" size={14} /> Claude</span>
+                    <span className="om-source-chip muted">Gemini — soon</span>
+                  </div>
                 </div>
               )}
             </div>
